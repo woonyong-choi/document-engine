@@ -1,0 +1,58 @@
+{
+  "name": "document-engine",
+  "version": "0.0.0",
+  "description": "Markdown parser and renderer that outputs HTML with a host-provided design theme",
+  "license": "MIT",
+  "author": "choi woo-nyong",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/woonyong-choi/document-engine.git"
+  },
+  "private": true,
+  "type": "module",
+  "main": "index.js",
+  "files": [
+    "index.js",
+    "parser/",
+    "renderer/",
+    "theme/"
+  ],
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "test": "node --test --test-concurrency=1 \"test/*.test.js\"",
+    "lint": "prettier --check . && eslint --max-warnings 0 .",
+    "check": "npm run lint && npm run test"
+  },
+  "dependencies": {
+    "@vscode/markdown-it-katex": "1.1.2",
+    "highlight.js": "11.12.0",
+    "katex": "0.19.0",
+    "markdown-it": "15.0.2",
+    "markdown-it-deflist": "4.0.0",
+    "markdown-it-footnote": "4.0.0",
+    "shiki": "4.5.0",
+    "yaml": "2.9.1"
+  },
+  "peerDependencies": {
+    "@woonyong-choi/design-tokens": "^0.1.1",
+    "thinkflow": "^0.2.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@woonyong-choi/design-tokens": "github:woonyong-choi/design-tokens#12f1c53a4379f6a000c5a0536402affd514c3e23",
+    "eslint": "10.12.0",
+    "eslint-plugin-sonarjs": "4.2.2",
+    "globals": "17.13.0",
+    "markdown-it-task-lists": "2.1.1",
+    "prettier": "3.9.10",
+    "thinkflow": "github:woonyong-choi/thinkflow#629d1909479ebcb674d3b0f0119bf93bd75b0c62"
+  },
+  "overrides": {
+    "katex": {
+      ".": "0.19.0",
+      "commander": "14.0.3"
+    }
+  }
+}
