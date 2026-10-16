@@ -41,13 +41,13 @@
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
-    "@woonyong-choi/design-tokens": "github:woonyong-choi/design-tokens#12f1c53a4379f6a000c5a0536402affd514c3e23",
+    "@woonyong-choi/design-tokens": "github:woonyong-choi/design-tokens#24974e0f4539de43096db59893be8443849ce188",
     "eslint": "10.12.0",
     "eslint-plugin-sonarjs": "4.2.2",
     "globals": "17.13.0",
     "markdown-it-task-lists": "2.1.1",
     "prettier": "3.9.10",
-    "thinkflow": "github:woonyong-choi/thinkflow#629d1909479ebcb674d3b0f0119bf93bd75b0c62"
+    "thinkflow": "github:woonyong-choi/thinkflow#08eddc4b22b481a342ecc93affabe989b7860915"
   },
   "overrides": {
     "katex": {
