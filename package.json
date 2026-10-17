@@ -41,7 +41,7 @@
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
-    "@woonyong-choi/design-tokens": "github:woonyong-choi/design-tokens#f7d473ebd91a432ec6bf49e6887d90341480d706",
+    "@woonyong-choi/design-tokens": "github:woonyong-choi/design-tokens#1441d59721cea72a69a1e72b0ca3a3572b309ac3",
     "eslint": "10.12.0",
     "eslint-plugin-sonarjs": "4.2.2",
     "globals": "17.13.0",
