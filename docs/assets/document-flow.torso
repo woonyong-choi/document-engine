@@ -1,0 +1,16 @@
+torso
+title "문서 해석과 출력"
+
+box source "원문"
+box parser "해석" tone=blue appearance=filled
+box renderer "출력" tone=blue appearance=filled
+box host "문서 화면"
+
+source -> parser no=1
+parser -> renderer no=2
+renderer -> host no=3
+
+scene "문서 연결" mode=once
+  source -> parser
+  parser -> renderer
+  renderer -> host
