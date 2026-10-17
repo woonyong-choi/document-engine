@@ -1,21 +1,14 @@
-# document-engine
+<h1 align="center">document-engine</h1>
 
-Markdown 원문을 토큰과 진단으로 해석하고 테마로 HTML을 출력하는 문서 엔진
+<p align="center">
+  Markdown 원문을 토큰과 진단으로 해석하고 테마로 HTML을 출력하는 문서 엔진<br>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="MIT 라이선스"></a>
+</p>
 
 홈페이지와 다른 문서 화면에서 같은 Markdown 해석·출력 함수를 쓰는 JavaScript 패키지입니다. 호출자는 원문 문자열을 넘기고 HTML, 제목 목록, 진단과 필요한 자산 정보를 받습니다.
 
 > [!NOTE]
-> 개발 중입니다. npm 배포판은 없고 소스를 직접 실행합니다.
-
-## 목차
-
-- [빠른 시작](#빠른-시작)
-- [해결하는 문제](#해결하는-문제)
-- [작동 방식](#작동-방식)
-- [상태](#상태)
-- [문서](#문서)
-- [개발](#개발)
-- [라이선스](#라이선스)
+> 개발 중입니다. 배포판은 없고 소스를 직접 실행합니다.
 
 ## 빠른 시작
 
@@ -59,22 +52,30 @@ npm install --save-dev \
 ## 작동 방식
 
 1. `parseDocument`가 원문을 markdown-it 토큰, 제목·링크·도표 정보와 진단으로 해석합니다.
-2. `renderDocument`가 해석 결과와 테마로 본문 HTML을 만듭니다.
+2. `renderDocument`가 해석 결과와 테마로 HTML, 제목 목록, 진단과 필요한 자산·runtime 정보를 만듭니다.
 3. 호출자가 HTML을 저장하고 CSS·runtime·자산을 문서 화면에 연결합니다.
+
+![원문을 해석한 결과를 테마로 출력하고 호출자가 문서 화면에 연결합니다](docs/assets/document-flow.svg)
 
 해석과 출력은 원문을 바꾸지 않습니다. 전체 계약과 호스트의 책임은 [문서 엔진](docs/design/document-engine.md)에 있습니다.
 
 ## 상태
 
-| 있는 것 | 아직 없는 것 |
-|---|---|
-| 해석·출력 API, 기본 테마 연결, 구성 요소 교체, 합성 입력 시험 | npm 배포판 |
+| 있는 것 | 제공 범위 밖 | 다음 |
+|---|---|---|
+| 해석·출력 API, 기본 테마 연결, 구성 요소 교체, 합성 입력 시험 | npm 레지스트리 배포, 파일 저장, 문서 탐색 화면 | [열린 이슈](https://github.com/woonyong-choi/document-engine/issues) |
 
-파일 저장과 문서 탐색 화면은 호출자가 구현합니다. `npm run check`는 코드와 합성 입력을 검사합니다. 홈페이지 원본 비교는 별도 조건이 필요하며 브라우저 화면과 운영 배포는 이 검사 범위에 없습니다. 1.0 전에는 API와 출력 형식이 바뀔 수 있습니다.
+다음 기능은 미정입니다. 파일 저장과 문서 탐색 화면은 호출자가 구현합니다. `npm run check`는 코드와 합성 입력을 검사합니다. 홈페이지 원본 비교는 별도 조건이 필요하며 브라우저 화면과 운영 배포는 이 검사 범위에 없습니다. 1.0 전에는 API와 출력 형식이 바뀔 수 있습니다.
 
 ## 문서
 
-- [문서 엔진](docs/design/document-engine.md): 해석·출력 계약, 테마 교체와 검증 범위
+- [문서 엔진](docs/design/document-engine.md)
+  - [해석 문맥](docs/design/document-engine.md#해석-문맥)
+  - [해석 결과](docs/design/document-engine.md#해석-결과)
+  - [출력 결과](docs/design/document-engine.md#출력-결과)
+  - [구성 요소 교체](docs/design/document-engine.md#구성-요소-교체)
+  - [호스트의 책임](docs/design/document-engine.md#호스트의-책임)
+  - [검증](docs/design/document-engine.md#검증)
 - [전체 문서](docs/README.md)
 
 ## 개발
