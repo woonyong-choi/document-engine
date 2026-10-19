@@ -41,13 +41,13 @@
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
-    "@woonyong-choi/design-tokens": "github:woonyong-choi/design-tokens#8c7133a79d623d6d0774ebe22a668c0931e7a1cb",
+    "@woonyong-choi/design-tokens": "github:woonyong-choi/design-tokens#5fc5fec166898e17eea52434891bf585ed980257",
     "eslint": "10.12.0",
     "eslint-plugin-sonarjs": "4.2.2",
     "globals": "17.13.0",
     "markdown-it-task-lists": "2.1.1",
     "prettier": "3.9.10",
-    "diagramplay": "github:woonyong-choi/diagramplay#ebdc3e9c84c3d5443af7f1b6b5d9b2a18e5002ca"
+    "diagramplay": "github:woonyong-choi/diagramplay#4850c23dae6cad989b29b6af691d5233bc9afd66"
   },
   "overrides": {
     "katex": {
