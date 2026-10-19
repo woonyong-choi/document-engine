@@ -15,6 +15,8 @@ Markdown 해석기·렌더러·기본 테마 연결을 제공하는 공개 문�
 
 ## 명령
 
+CI는 `ubuntu-24.04`의 Node 22에서 `npm ci`와 `npm run check`(lint와 test)를 실행한다. 패키지의 지원 선언 `>=22.12.0`을 유지하며 그보다 낮은 Node 20을 지원 환경으로 추가하지 않는다. Action 자체는 Node 24 기반 공식 release의 SHA로 고정한다(2026-10-19 확인). 공개 합성 입력만 사용하고 홈페이지 원본을 주입하지 않아 원본 비교 시험은 생략한다. 생략 수를 통과 수에 더하지 않는다.
+
 ```sh
 npm test
 npm run lint
