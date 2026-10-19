@@ -55,15 +55,19 @@ test('design_and_renderer_are_peer_dependencies_pinned_to_commits_for_the_tests'
   const pkg = JSON.parse(readFileSync(new URL('package.json', root), 'utf8'));
   for (const [name, repository] of [
     ['@woonyong-choi/design-tokens', 'design-tokens'],
-    ['thinkflow', 'thinkflow'],
+    ['diagramplay', 'diagramplay'],
   ]) {
-    assert.match(pkg.peerDependencies[name], /^\^\d+\.\d+\.\d+$/, name);
+    assert.equal(pkg.peerDependencies[name], '^0.2.0', name);
     assert.match(
       pkg.devDependencies[name],
       new RegExp(`^github:woonyong-choi/${repository}#[0-9a-f]{40}$`),
       name,
     );
     assert.equal(pkg.dependencies[name], undefined, name);
+  }
+  for (const dependencies of [pkg.dependencies, pkg.devDependencies, pkg.peerDependencies]) {
+    assert.equal(dependencies.thinkflow, undefined);
+    assert.equal(dependencies['torso-diagram'], undefined);
   }
   assert.equal(pkg.scripts.prepare, undefined);
   assert.equal(pkg.scripts.prepack, undefined);
