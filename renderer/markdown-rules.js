@@ -245,7 +245,7 @@ function renderFence(token, env, line) {
     const diagram = render.context.diagrams?.get(token.content);
     if (diagram?.error) {
       return reportRenderFailure(render, new Error(diagram.error), {
-        component: 'thinkflow',
+        component: token.info.trim().split(/\s/)[0],
         line,
       });
     }

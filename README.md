@@ -34,12 +34,12 @@ JS
 
 제목과 문단의 HTML, 빈 진단 목록을 출력합니다. 브라우저 화면의 CSS·runtime 연결과 HTML 저장은 호출자가 처리합니다.
 
-앱에서 설치할 때는 디자인(`@woonyong-choi/design-tokens`), 도표 렌더러(`thinkflow`), 엔진의 commit을 함께 고르세요. 디자인과 도표 렌더러는 peer 의존성입니다. npm 레지스트리에는 발행하지 않습니다.
+앱에서 설치할 때는 디자인(`@woonyong-choi/design-tokens`), 도표 렌더러(`diagramplay`), 엔진의 commit을 함께 고르세요. 디자인과 도표 렌더러는 각각 `^0.2.0` peer 의존성입니다. npm 레지스트리에는 발행하지 않습니다.
 
 ```sh
 npm install --save-dev \
   github:woonyong-choi/design-tokens#<commit> \
-  github:woonyong-choi/thinkflow#<commit> \
+  github:woonyong-choi/diagramplay#<commit> \
   github:woonyong-choi/document-engine#<commit>
 ```
 
@@ -57,7 +57,7 @@ npm install --save-dev \
 
 ![원문을 해석한 결과를 테마로 출력하고 호출자가 문서 화면에 연결합니다](docs/assets/document-flow.svg)
 
-해석과 출력은 원문을 바꾸지 않습니다. 전체 계약과 호스트의 책임은 [문서 엔진](docs/design/document-engine.md)에 있습니다.
+해석과 출력은 원문을 바꾸지 않습니다. 도표는 `diagramplay` 펜스를 권장하며 기존 `thinkflow`와 `torso` 펜스도 같은 DiagramPlay 렌더러를 씁니다. 컴파일할 때 첫 의미 줄의 유효한 구 시작 선언만 변환하고, 문법 복사와 HTML 다운로드에는 입력 원문을 그대로 담습니다. 지원하지 않는 아이콘은 진단으로 반환합니다. 전체 계약과 호스트의 책임은 [문서 엔진](docs/design/document-engine.md)에 있습니다.
 
 ## 상태
 
@@ -85,7 +85,14 @@ npm test
 npm run lint
 ```
 
-`npm run check`는 위 두 검사를 한 번에 실행합니다. 시험은 `devDependencies`에 고정한 디자인과 ThinkFlow commit을 사용합니다.
+`npm run check`는 위 두 검사를 한 번에 실행합니다. 시험은 `devDependencies`에 고정한 디자인과 DiagramPlay commit을 사용합니다.
+
+README 흐름 그림은 `docs/assets/document-flow.diagramplay`가 원본입니다. 설치한 DiagramPlay로 다시 만듭니다.
+
+```sh
+node node_modules/diagramplay/src/cli.js check docs/assets/document-flow.diagramplay --strict
+node node_modules/diagramplay/src/cli.js render docs/assets/document-flow.diagramplay --strict
+```
 
 홈페이지 원본 비교를 실행하려면 `HOMEPAGE_SOURCE`에 고정 commit `87af00676f181524d8386c2af39a06554f227325`의 홈페이지 작업본을 지정하세요. 해당 작업본은 의존성이 설치되어 있고 추적 파일이 깨끗해야 합니다. 지정하지 않으면 비교 시험을 건너뜁니다.
 

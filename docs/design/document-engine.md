@@ -63,7 +63,7 @@ console.log(output.diagnostics);
 | 필드 | 뜻 |
 |---|---|
 | metadata.headings | `{ id, title, level, line }` 목록. 중첩 구성 요소 안의 제목은 구성 요소 줄을 가리킨다 |
-| metadata.diagrams | ThinkFlow 원문과 줄·폭. 도표 생성은 렌더러 밖에서 한다 |
+| metadata.diagrams | 도표 원문과 줄·폭. 도표 생성은 렌더러 밖에서 한다 |
 | metadata.links | `{ kind, target, line }` 목록. `kind`는 `link` 또는 `image`, `target`은 원문 대상 |
 | diagnostics | 해석 진단. `{ document, severity, stage, message, line, directive, nestedLine? }` |
 
@@ -83,7 +83,11 @@ console.log(output.diagnostics);
 | math | 수식이 있으면 true. KaTeX 스타일·글꼴은 `mathAssets()` |
 | diagrams | `{ source, line, status: embedded, pending, failed }` |
 
-`thinkflow` 펜스는 `width`와 `name=<이름>`을 받는다. 이름은 영문 소문자·숫자와 가운데 하이픈으로 쓰며, 유효성은 시험에 고정한 ThinkFlow의 `findBlocks`와 대조한다. 다른 속성과 잘못된 이름은 위치가 있는 진단으로 돌려준다.
+`diagramplay` 펜스를 권장하며 기존 `thinkflow`와 `torso` 펜스도 같은 도표 분기로 해석한다. 세 펜스는 `width`와 `name=<이름>`을 받는다. 이름은 영문 소문자·숫자와 가운데 하이픈으로 쓰며, 유효성은 시험에 고정한 DiagramPlay의 `findBlocks`와 대조한다. 다른 속성과 잘못된 이름은 위치가 있는 진단으로 돌려준다.
+
+`compileDiagram`은 첫 의미 줄의 독립된 `thinkflow` 또는 `torso` 선언만 `diagramplay`로 바꿔 단일 렌더러에 전달한다. 빈 줄, BOM, 공백, `#` 주석을 건너뛰되 구 선언 뒤에는 공백이나 주석만 허용한다. 본문·라벨·잘못된 시작 선언은 바꾸지 않는다. token.content, metadata, 중복 제거 기준과 결과 Map key는 원문을 유지한다. 공개 `toHtml`의 `source` 옵션으로 입력 원문을 전달하므로 문법 복사와 canonical HTML 다운로드도 같은 원문을 담는다. 컴파일 모형과 시간표는 수정하지 않는다.
+
+지원 아이콘은 호스트의 full 디자인 catalog가 정한다. 지원하지 않는 이름은 원문을 보존한 채 실패 진단으로 남긴다. 렌더 진단의 component는 입력 펜스 이름을 유지하며, 컴파일하지 않은 도표는 읽을 수 있는 코드로 남는다.
 
 검증한 `name`은 펜스 토큰의 `meta.options`에 보존한다. 도표 원문·수집 정보·출력·경로에는 쓰지 않는다. 이름이 달라도 원문이 같으면 도표를 한 번만 만든다. 이름을 이용한 생성 SVG와 장면 표식의 전처리는 홈페이지 어댑터가 맡는다.
 
@@ -118,7 +122,7 @@ console.log(output.diagnostics);
 
 ### 호스트의 책임
 
-소개 문단 중복 제거, 프로젝트 첫 H1·기존 ThinkFlow SVG 처리, 태그·공개 여부·날짜·발행 경로, 개인 도메인, image-sizes.json과 content 폴더 읽기, 출력 파일 배치, 검색·댓글·footer는 공통 엔진에 없다. 홈페이지 어댑터가 `assets`로 조회·주소·크기를 넘기고 `diagrams`를 만들어 전달한다. 도표 컴파일 결과의 `scenes`(ThinkFlow 시간표 단계 수)가 둘 이상인 도표를 품은 일반 `:::tabs`는 생략한 `position`을 `top`, `selector`를 `segmented`로 채우며(명시한 옵션과 `platform`은 그대로) 원문을 다시 읽어 세지 않는다. 프로젝트 도표 SVG·장면 표식 줄은 홈페이지 어댑터가 소유한다.
+소개 문단 중복 제거, 프로젝트 첫 H1·기존 ThinkFlow SVG 처리, 태그·공개 여부·날짜·발행 경로, 개인 도메인, image-sizes.json과 content 폴더 읽기, 출력 파일 배치, 검색·댓글·footer는 공통 엔진에 없다. 홈페이지 어댑터가 `assets`로 조회·주소·크기를 넘기고 `diagrams`를 만들어 전달한다. 도표 컴파일 결과의 `scenes`(DiagramPlay 시간표 단계 수)가 둘 이상인 도표를 품은 일반 `:::tabs`는 생략한 `position`을 `top`, `selector`를 `segmented`로 채우며(명시한 옵션과 `platform`은 그대로) 원문을 다시 읽어 세지 않는다. 프로젝트 도표 SVG·장면 표식 줄은 홈페이지 어댑터가 소유한다.
 
 ### 배포 파일
 
@@ -128,7 +132,7 @@ console.log(output.diagnostics);
 {
   "devDependencies": {
     "@woonyong-choi/design-tokens": "github:woonyong-choi/design-tokens#<commit>",
-    "thinkflow": "github:woonyong-choi/thinkflow#<commit>",
+    "diagramplay": "github:woonyong-choi/diagramplay#<commit>",
     "document-engine": "github:woonyong-choi/document-engine#<commit>"
   }
 }
@@ -136,10 +140,10 @@ console.log(output.diagnostics);
 
 | 의존성 | 선언 | 이유 |
 |---|---|---|
-| `@woonyong-choi/design-tokens` | `peerDependencies` `^0.1.1`, 시험용 `devDependencies` 고정 commit | 기본 테마는 호스트가 준 디자인을 쓴다 |
-| `thinkflow` | `peerDependencies` `^0.2.0`, 시험용 `devDependencies` 고정 commit | 도표는 호스트가 고른 렌더러로 만든다 |
+| `@woonyong-choi/design-tokens` | `peerDependencies` `^0.2.0`, 시험용 `devDependencies` 고정 commit | 기본 테마는 호스트가 준 디자인을 쓴다 |
+| `diagramplay` | `peerDependencies` `^0.2.0`, 시험용 `devDependencies` 고정 commit | 도표는 호스트가 고른 렌더러로 만든다 |
 
-peer 범위는 설치된 패키지의 `version`과 비교한다. Git으로 설치한 패키지도 이 값을 가지므로 호스트가 고른 commit 하나를 엔진과 ThinkFlow가 함께 읽는다. `compileDiagram`은 엔진과 ThinkFlow가 같은 디자인 패키지 위치를 읽는지 확인하고 다르면 도표를 거절한다.
+peer 범위는 설치된 패키지의 `version`과 비교한다. Git으로 설치한 패키지도 이 값을 가지므로 호스트가 고른 commit 하나를 엔진과 DiagramPlay가 함께 읽는다. `compileDiagram`은 엔진과 DiagramPlay가 같은 디자인 패키지 위치를 읽는지 확인하고 다르면 도표를 거절한다.
 
 `files`는 `index.js`, `parser/`, `renderer/`, `theme/`만 허용하고 npm이 항상 담는 `package.json`, `README.md`, `LICENSE`가 더해진다. 시험, 설계 문서, 설정 파일, `node_modules`와 개인 경로는 들어가지 않으며 `test/package.test.js`가 `npm pack --dry-run` 목록으로 허용 범위와 담긴 코드의 상대 import 완결성, peer 선언을 검사한다. npm 레지스트리에는 발행하지 않는다.
 

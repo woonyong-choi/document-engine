@@ -1,5 +1,3 @@
-// 코드 펜스를 의미로 나눈다: ui: 구성 요소, ThinkFlow 도표, 일반 코드.
-// ui: 펜스의 YAML과 안쪽 Markdown은 여기서 해석해 기존 토큰으로 보존한다. 출력은 보존한 토큰을 그리기만 한다.
 import { parse as parseYaml } from 'yaml';
 
 import { DirectiveError, reportSyntaxError } from './diagnostics.js';
@@ -7,8 +5,6 @@ import { WIDTH_OPTION, parseOptions } from './directive-syntax.js';
 import { createEnv } from './units.js';
 
 const CODE_ATTRIBUTES = Object.freeze({ width: WIDTH_OPTION, filename: { type: 'text' } });
-// name은 `thinkflow name=<이름>` 표기를 받아 meta.options에 보존할 뿐이다. 값의 형식은 ThinkFlow 울타리 읽기(md.js BLOCK_NAME)와
-// 같다. 출력·경로·도표 원문에는 쓰지 않으며 그 값의 의미(전처리)는 홈페이지 어댑터가 정한다.
 const BLOCK_NAME = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const DIAGRAM_ATTRIBUTES = Object.freeze({ width: WIDTH_OPTION, name: { type: 'text' } });
 
@@ -78,7 +74,7 @@ function classifyFence(state, token) {
     throw new DirectiveError(message, { page: env.pageId, line, name });
   };
   const optionSource = kind.replace(/^\S+\s*/, '');
-  if (/^thinkflow(?:\s|$)/.test(kind)) {
+  if (/^(?:diagramplay|thinkflow|torso)(?:\s|$)/.test(kind)) {
     const options = parseOptions(optionSource, DIAGRAM_ATTRIBUTES, fail);
     if (options.name !== undefined && !BLOCK_NAME.test(options.name)) {
       fail('name은 영문 소문자·숫자와 가운데 하이픈(-)만 쓸 수 있습니다 (예: name=flow-1)');

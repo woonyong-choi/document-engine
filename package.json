@@ -36,18 +36,18 @@
     "yaml": "2.9.1"
   },
   "peerDependencies": {
-    "@woonyong-choi/design-tokens": "^0.1.1",
-    "thinkflow": "^0.2.0"
+    "@woonyong-choi/design-tokens": "^0.2.0",
+    "diagramplay": "^0.2.0"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
-    "@woonyong-choi/design-tokens": "github:woonyong-choi/design-tokens#1441d59721cea72a69a1e72b0ca3a3572b309ac3",
+    "@woonyong-choi/design-tokens": "github:woonyong-choi/design-tokens#8c7133a79d623d6d0774ebe22a668c0931e7a1cb",
     "eslint": "10.12.0",
     "eslint-plugin-sonarjs": "4.2.2",
     "globals": "17.13.0",
     "markdown-it-task-lists": "2.1.1",
     "prettier": "3.9.10",
-    "thinkflow": "github:woonyong-choi/thinkflow#d4d4e25eca7f8baef88827cc4ea10f5bda9757ea"
+    "diagramplay": "github:woonyong-choi/diagramplay#ebdc3e9c84c3d5443af7f1b6b5d9b2a18e5002ca"
   },
   "overrides": {
     "katex": {

@@ -309,11 +309,11 @@ test('details_summary_inline_errors_report_the_summary_line', () => {
   assert.equal(first.diagnostics[0].line, 2);
 });
 
-// ThinkFlow가 읽는 name 규칙과 어긋나지 않게, 고정한 ThinkFlow의 findBlocks(패키지 export에는 없어 파일로 불러온다)와 같은 판정을 한다.
-test('thinkflow_name_validity_matches_the_pinned_thinkflow_fence_reader', async () => {
-  const thinkflowRoot = createRequire(import.meta.url).resolve('thinkflow/package.json');
+// DiagramPlay findBlocks는 패키지 export가 아니므로 고정한 패키지의 내부 파일을 읽는다.
+test('diagramplay_name_validity_matches_the_pinned_diagramplay_fence_reader', async () => {
+  const diagramplayRoot = createRequire(import.meta.url).resolve('diagramplay/package.json');
   const { findBlocks } = await import(
-    pathToFileURL(thinkflowRoot.replace(/package\.json$/, 'src/md.js')).href
+    pathToFileURL(diagramplayRoot.replace(/package\.json$/, 'src/md.js')).href
   );
   const names = [
     'flow',
@@ -331,7 +331,7 @@ test('thinkflow_name_validity_matches_the_pinned_thinkflow_fence_reader', async 
     '../x',
   ];
   for (const name of names) {
-    const lines = [`\`\`\`thinkflow name=${name}`, 'A', '```'];
+    const lines = [`\`\`\`diagramplay name=${name}`, 'A', '```'];
     const found = findBlocks(lines);
     const upstreamValid = found.errors.length === 0 && found.blocks.length === 1;
     const fence = allTokens(parse(`${lines.join('\n')}\n`).tokens).find(
