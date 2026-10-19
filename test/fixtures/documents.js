@@ -148,9 +148,9 @@ export const DOCUMENTS = Object.freeze({
     '',
   ].join('\n'),
   inline_directives:
-    '열기 :icon[search] 누르기 :kbd[⌘ K] 메뉴 :menu[파일] 설명 :tip[단어 <b>]{text="뜻 \\"하나\\" <script>x</script> & 둘"}를 읽습니다. ::표시:: :nope[x]',
+    '열기 :icon[document] 누르기 :kbd[⌘ K] 메뉴 :menu[파일] 설명 :tip[단어 <b>]{text="뜻 \\"하나\\" <script>x</script> & 둘"}를 읽습니다. ::표시:: :nope[x]',
   image_alternative_text_keeps_directive_labels:
-    '![**키** :kbd[Ctrl] :menu[파일] :icon[search] :tip[단어 <b>]{text="설명"} `code` ![안쪽 :kbd[Enter]](/inner.png)](/outer.png)',
+    '![**키** :kbd[Ctrl] :menu[파일] :icon[document] :tip[단어 <b>]{text="설명"} `code` ![안쪽 :kbd[Enter]](/inner.png)](/outer.png)',
   tooltip_ids_inside_ui_components:
     '가 :tip[하나]{text=a} 나 :tip[둘]{text=b}\n\n```ui:callout\ntitle: x\nbody: ":tip[셋]{text=c} :tip[넷]{text=d}"\n```\n',
   markers_inside_code_stay_literal:
@@ -327,7 +327,7 @@ export const DOCUMENTS = Object.freeze({
   ].join('\n\n'),
   math_inline_and_block:
     '분수 $\\frac{1}{2}$ 와\n\n$$\n\\begin{pmatrix}1&2\\\\3&4\\end{pmatrix}\n$$\n\n커피 $5, 케이크 $12 입니다. 변수 $HOME 과 $USER.\n\n`$x$` 와 \\$a\\$ 끝\n\n틀림 $\\frac{1$ 끝\n\n$\\href{javascript:alert(1)}{x}$ $\\includegraphics{http://evil.test/a.png}$ $x<y$\n\n## 식 $a$\n\n| 식 | 값 |\n|---|---|\n| $x^2$ | 4 |\n\n각주[^1]\n\n[^1]: $y$ 설명\n\n```latex\n$$ \\frac{a}{b} $$ $x^2$\n```',
-  math_next_to_directives: ':kbd[Ctrl] $x^2$\n\n## :menu[파일] 수식 $x^2$\n\n$x^2$ :icon[search]',
+  math_next_to_directives: ':kbd[Ctrl] $x^2$\n\n## :menu[파일] 수식 $x^2$\n\n$x^2$ :icon[document]',
   footnotes_nested_and_repeated:
     '본문[^a] 다시[^a] 또[^b]\n\n[^a]: 첫째 **굵게**\n[^b]: 둘째\n\n```ui:details\ntitle: 안\nbody: "각주[^a]\\n\\n[^a]: 안쪽"\n```\n',
   thinkflow_without_compiled_diagram:
