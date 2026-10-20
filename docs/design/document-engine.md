@@ -4,7 +4,9 @@
 |---|---|
 | 상태 | 구현 |
 | 위치 | 저장소 루트 |
-| 입력 기준 | 비교 원본 홈페이지 87af00676f181524d8386c2af39a06554f227325. 디자인 정본과 ThinkFlow는 호스트가 고르는 peer 의존성이며 시험용 commit은 `devDependencies`에 있다 |
+| 입력 기준 | 비교 원본 홈페이지 `87af00676f181524d8386c2af39a06554f227325` |
+
+디자인 패키지와 DiagramPlay는 호스트가 고르는 peer 의존성이다. 시험용 commit은 `devDependencies`에 고정한다.
 
 ## 요약
 
@@ -78,10 +80,15 @@ console.log(output.diagnostics);
 | html | 본문 HTML |
 | headings | 해석 결과의 제목 목록 |
 | diagnostics | 해석 진단과 출력 진단. 출력 진단은 `stage: render`와 `component`를 사용하며 `directive`는 없음 |
-| assets | 문서가 쓴 자산 `{ name, url }`. 주소는 `assets.url(name)`, 없으면 `/assets/<name>`. 주소는 디자인 정본의 URL 정책(https·mailto·`/` 경로·`#`)을 통과해야 쓰고 기록하며 출력할 때 속성에 맞게 한 번만 이스케이프한다. 크기는 양의 정수 한 쌍이어야 한다. 주소를 얻는 데 성공한 자산만 기록하고 결과 조립에서 다시 조회하지 않는다 |
+| assets | 구성 요소가 자산 조회로 사용한 `{ name, url }` 목록 |
 | runtime | 필요한 정본 runtime 파일 이름(`document.js`, `video.js` 등) |
 | math | 수식이 있으면 true. KaTeX 스타일·글꼴은 `mathAssets()` |
 | diagrams | `{ source, line, status: embedded, pending, failed }` |
+| theme | 적용한 테마 이름. 기본값은 `default` |
+
+구성 요소의 자산 주소는 출력 문맥의 `assets.url(name)`으로 조회하고, 함수가 없으면 `/assets/<name>`을 쓴다. 디자인 패키지의 URL 정책(https·mailto·`/` 경로·`#`)을 통과한 주소만 기록하며 출력할 때 속성에 맞게 한 번만 이스케이프한다. 선택적으로 전달하는 `assets.size(name)`은 양의 정수 한 쌍 또는 크기를 모를 때 `undefined`를 반환한다. 결과를 조립할 때 주소를 다시 조회하지 않는다.
+
+일반 Markdown 이미지의 주소는 원문을 사용하므로 `assets.url`로 바꾸거나 반환값 `assets`에 모으지 않는다. 해당 이미지에도 `assets.size`로 크기를 제공할 수 있다. 호스트가 문서의 링크·이미지 대상을 모두 확인하려면 해석 결과의 `metadata.links`를 사용한다. 이 구분은 [자산 조회 도구](../../renderer/kit.js)와 [이미지 출력 규칙](../../renderer/markdown-rules.js)에 있다.
 
 `diagramplay` 펜스를 권장하며 기존 `thinkflow`와 `torso` 펜스도 같은 도표 분기로 해석한다. 세 펜스는 `width`와 `name=<이름>`을 받는다. 이름은 영문 소문자·숫자와 가운데 하이픈으로 쓰며, 유효성은 시험에 고정한 DiagramPlay의 `findBlocks`와 대조한다. 다른 속성과 잘못된 이름은 위치가 있는 진단으로 돌려준다.
 
@@ -90,6 +97,8 @@ console.log(output.diagnostics);
 지원 아이콘은 호스트의 전체 디자인 카탈로그가 정한다. 지원하지 않는 이름은 원문을 보존한 채 실패 진단으로 남긴다. 렌더 진단의 component는 입력 펜스 이름을 유지하며, 컴파일하지 않은 도표는 읽을 수 있는 코드로 남는다.
 
 검증한 `name`은 펜스 토큰의 `meta.options`에 보존한다. 도표 원문·수집 정보·출력·경로에는 쓰지 않는다. 이름이 달라도 원문이 같으면 도표를 한 번만 만든다. 이름을 이용한 생성 SVG와 장면 표식의 전처리는 홈페이지 어댑터가 맡는다.
+
+도표 컴파일 결과의 `scenes`는 DiagramPlay 시간표의 단계 수다. 이 값이 둘 이상인 도표를 품은 일반 `:::tabs`에서 렌더러는 생략한 `position`을 `top`, `selector`를 `segmented`로 채운다. 명시한 옵션과 `platform` 묶음은 바꾸지 않으며 원문을 다시 읽어 단계를 세지 않는다. 이 처리는 호스트가 아니라 [렌더러](../../renderer/directive-render.js)의 책임이며, [renderer.test.js](../../test/renderer.test.js)의 `tabs_holding_a_multi_scene_diagram_fill_only_omitted_position_and_selector`와 `platform_tabs_and_later_tab_sets_ignore_the_scene_decision`이 검사한다.
 
 각주 ID는 `pageId`를 접두사로 해(`fn-<pageId>-1`, `fnref-<pageId>-1`) 한 피드의 여러 문서가 겹치지 않으며, `pageId`가 없으면 접두사가 없다. 구성 요소 안 각주는 구성 요소 번호를 따른다.
 
@@ -122,7 +131,9 @@ console.log(output.diagnostics);
 
 ### 호스트의 책임
 
-소개 문단 중복 제거, 프로젝트 첫 H1·기존 ThinkFlow SVG 처리, 태그·공개 여부·날짜·발행 경로, 개인 도메인, image-sizes.json과 content 폴더 읽기, 출력 파일 배치, 검색·댓글·footer는 공통 엔진에 없다. 홈페이지 어댑터가 `assets`로 조회·주소·크기를 넘기고 `diagrams`를 만들어 전달한다. 도표 컴파일 결과의 `scenes`(DiagramPlay 시간표 단계 수)가 둘 이상인 도표를 품은 일반 `:::tabs`는 생략한 `position`을 `top`, `selector`를 `segmented`로 채우며(명시한 옵션과 `platform`은 그대로) 원문을 다시 읽어 세지 않는다. 프로젝트 도표 SVG·장면 표식 줄은 홈페이지 어댑터가 소유한다.
+자산 조회·파일 저장·화면 연결은 호스트가 맡는다. 홈페이지 어댑터는 `assets`로 조회·주소·크기를 넘기고, 도표 컴파일 결과를 원문별 Map인 `diagrams`로 전달한다. 컴파일한 도표의 HTML 파일을 저장하고 제공하는 일도 호스트의 책임이다.
+
+소개 문단 중복 제거, 프로젝트 첫 H1·기존 ThinkFlow SVG 처리, 태그·공개 여부·날짜·발행 경로, 개인 도메인, `image-sizes.json`과 `content` 폴더 읽기, 출력 파일 배치, 검색·댓글·footer는 공통 엔진에 없다. 프로젝트 도표 SVG·장면 표식 줄의 전처리도 홈페이지 어댑터가 소유한다.
 
 ### 배포 파일
 
