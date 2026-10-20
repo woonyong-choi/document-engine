@@ -88,7 +88,7 @@ console.log(output.diagnostics);
 
 구성 요소의 자산 주소는 출력 문맥의 `assets.url(name)`으로 조회하고, 함수가 없으면 `/assets/<name>`을 쓴다. 디자인 패키지의 URL 정책(https·mailto·`/` 경로·`#`)을 통과한 주소만 기록하며 출력할 때 속성에 맞게 한 번만 이스케이프한다. 선택적으로 전달하는 `assets.size(name)`은 양의 정수 한 쌍 또는 크기를 모를 때 `undefined`를 반환한다. 결과를 조립할 때 주소를 다시 조회하지 않는다.
 
-일반 Markdown 이미지의 주소는 원문을 사용하므로 `assets.url`로 바꾸거나 반환값 `assets`에 모으지 않는다. 해당 이미지에도 `assets.size`로 크기를 제공할 수 있다. 호스트가 문서의 링크·이미지 대상을 모두 확인하려면 해석 결과의 `metadata.links`를 사용한다. 이 구분은 [자산 조회 도구](../../renderer/kit.js)와 [이미지 출력 규칙](../../renderer/markdown-rules.js)에 있다.
+일반 Markdown 이미지의 주소는 원문을 사용하므로 `assets.url`로 바꾸거나 반환값 `assets`에 모으지 않는다. 해당 이미지에도 `assets.size`로 크기를 제공할 수 있다. 일반 Markdown의 링크·이미지 대상은 해석 결과의 `metadata.links`에서 확인한다. `::figure`의 `src` 같은 구성 요소 이미지 필드는 이 목록에 없으므로 해석된 토큰의 속성과 출력의 `assets`도 따로 확인한다. `assets`는 사용한 주소 목록이지 파일 존재 확인 결과가 아니며, 실제 존재 여부는 호스트가 해석 문맥의 `assets.exists` 등으로 검사한다. 이 구분은 [자산 조회 도구](../../renderer/kit.js)와 [이미지 출력 규칙](../../renderer/markdown-rules.js)에 있다.
 
 `diagramplay` 펜스를 권장하며 기존 `thinkflow`와 `torso` 펜스도 같은 도표 분기로 해석한다. 세 펜스는 `width`와 `name=<이름>`을 받는다. 이름은 영문 소문자·숫자와 가운데 하이픈으로 쓰며, 유효성은 시험에 고정한 DiagramPlay의 `findBlocks`와 대조한다. 다른 속성과 잘못된 이름은 위치가 있는 진단으로 돌려준다.
 
