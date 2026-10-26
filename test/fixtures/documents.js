@@ -486,30 +486,42 @@ export const ERROR_CASES = Object.freeze([
   ['고아 :::end', '문단\n\n:::end\n', /3줄: 여는 블록 없이 :::end 가 있습니다/],
 ]);
 
-/** ui: 구성 요소의 오류 입력. 원본은 같은 입력에서 같은 메시지로 실패한다. */
+/** ui: 구성 요소의 오류 입력. 원본은 같은 입력에서 같은 메시지로 실패한다. pattern은 엔진 진단의 기대 문구다. */
 export const UI_ERROR_CASES = Object.freeze(
   [
-    ['unknown', fence('unknown', { body: 'text' })],
-    ['keyboard', fence('keyboard', { body: 'text' })],
-    ['gallery_empty_slides', fence('gallery', { slides: [] })],
-    ['cards_unknown_variant', fence('cards', { variant: 'unknown', items: [] })],
+    ['unknown', fence('unknown', { body: 'text' }), /^Unknown document component: unknown$/],
+    ['keyboard', fence('keyboard', { body: 'text' }), /^Unknown document component: keyboard$/],
+    ['gallery_empty_slides', fence('gallery', { slides: [] }), /^Gallery requires slides$/],
+    [
+      'cards_unknown_variant',
+      fence('cards', { variant: 'unknown', items: [] }),
+      /^Unknown card variant: unknown$/,
+    ],
     [
       'card_unknown_variant',
       fence('cards', { items: [{ variant: 'unknown', title: 'Invalid', href: '/things/' }] }),
+      /^Unknown card variant: unknown$/,
     ],
-    ['figure_wide_alias', fence('figure', { src: '2-today-mac.png', alt: '화면', wide: false })],
+    [
+      'figure_wide_alias',
+      fence('figure', { src: '2-today-mac.png', alt: '화면', wide: false }),
+      /^Use width instead of wide$/,
+    ],
     [
       'figure_size_alias',
       fence('figure', { src: '2-today-mac.png', alt: '화면', size: 'compact' }),
+      /^Use width instead of size$/,
     ],
     [
       'gallery_wide_alias',
       fence('gallery', { slides: [{ src: '2-today-mac.png', label: '화면' }], wide: false }),
+      /^Use width instead of wide$/,
     ],
-    ['figure_grid_empty', fence('figure-grid', { items: [] })],
+    ['figure_grid_empty', fence('figure-grid', { items: [] }), /^ui:figure-grid needs items$/],
     [
       'figure_grid_columns',
       fence('figure-grid', { columns: 7, items: [{ src: '2-today-mac.png', alt: 'a' }] }),
+      /^Invalid columns: 7$/,
     ],
     [
       'figure_grid_columns_proto',
@@ -517,6 +529,7 @@ export const UI_ERROR_CASES = Object.freeze(
         columns: 'constructor',
         items: [{ src: '2-today-mac.png', alt: 'a' }],
       }),
+      /^Invalid columns: constructor$/,
     ],
     [
       'gallery_selected_range',
@@ -524,27 +537,39 @@ export const UI_ERROR_CASES = Object.freeze(
         selected: 2,
         slides: [{ src: '2-today-mac.png' }, { src: '3-upcoming-mac-2.png' }],
       }),
+      /^Gallery selected index is out of range$/,
     ],
-    ['tabs_without_items', fence('tabs', { title: 'x' })],
-    ['asset_traversal', fence('figure', { src: '../outside.png', alt: 'x' })],
+    ['tabs_without_items', fence('tabs', { title: 'x' }), /^Tabs require items$/],
+    [
+      'asset_traversal',
+      fence('figure', { src: '../outside.png', alt: 'x' }),
+      /^Invalid asset: \.\.\/outside\.png$/,
+    ],
     [
       'figure_unsafe_href',
       fence('figure', { src: '2-today-mac.png', alt: 'x', href: 'javascript:alert(1)' }),
+      /^Unsupported URL: javascript:alert\(1\)$/,
     ],
     [
       'card_unsafe_href',
       fence('cards', { items: [{ title: 'x', href: '//evil.test', icon: false }] }),
+      /^Unsupported URL: \/\/evil\.test$/,
     ],
     [
       'card_unknown_article_icon',
       fence('cards', { items: [{ title: 'x', href: '/a/', icon: 'no-such-icon' }] }),
+      /^unknown articles icon: no-such-icon$/,
     ],
-  ].map(([name, source]) => [name, `${source}\n`]),
+  ].map(([name, source, pattern]) => [name, `${source}\n`, pattern]),
 );
 
-/** 문법 오류로 진단이 나야 하는 ui: 입력. 메시지는 엔진이 위치를 덧붙여 달라도 원인이 같아야 한다. */
+/** 문법 오류로 진단이 나야 하는 ui: 입력. 메시지는 엔진이 위치를 덧붙여 달라도 원인이 같아야 한다. pattern은 엔진 진단의 기대 문구다. */
 export const UI_SYNTAX_ERRORS = Object.freeze([
-  ['yaml_unclosed', '```ui:tabs\nitems: [\n```\n'],
-  ['yaml_scalar', '```ui:callout\njust text\n```\n'],
-  ['thinkflow_unknown_option', '```thinkflow filename=x\nflow\n```\n'],
+  ['yaml_unclosed', '```ui:tabs\nitems: [\n```\n', /^ui:tabs 데이터를 읽을 수 없습니다: /],
+  ['yaml_scalar', '```ui:callout\njust text\n```\n', /^Invalid ui:callout data$/],
+  [
+    'thinkflow_unknown_option',
+    '```thinkflow filename=x\nflow\n```\n',
+    /^허용하지 않는 속성입니다: filename/,
+  ],
 ]);

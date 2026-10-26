@@ -165,6 +165,8 @@ peer 범위는 설치된 패키지의 `version`과 비교한다. Git으로 설�
 - 원본이 줄을 붙이지 못하는 `<summary>` 안 인라인 오류에 요약 줄을 붙인다.
 - 아이콘 유효성은 SVG 출력 대신 카탈로그 확인이므로 SVG ID 카운터 소비 횟수가 다르다.
 
+원본 비교와 별개로 오류 사례 시험은 홈페이지 원본 없이 CI에서 실행한다. [renderer.test.js](../../test/renderer.test.js)는 `ERROR_CASES`마다 첫 진단을 `본문 N줄 :이름: 내용` 형식으로 조립해 기대 정규식과 비교하고(`error_case_is_a_located_diagnostic_<이름>`), `UI_ERROR_CASES`와 `UI_SYNTAX_ERRORS`의 진단 문구도 기대 정규식으로 검사한다(`ui_error_case_is_a_diagnostic_<이름>`, `ui_syntax_error_is_one_parse_diagnostic_<이름>`). 원문 HTML과 위험한 주소의 처리는 `raw_html_and_unsafe_urls_never_reach_the_output_as_markup`이 출력에 `<script`, `javascript:` 같은 주소의 `href`·`src`, 이벤트 속성이 없는지 직접 확인한다.
+
 ### 요구사항
 
 | 요구사항 | 검증 계획 |
@@ -172,6 +174,8 @@ peer 범위는 설치된 패키지의 `version`과 비교한다. Git으로 설�
 | 해석기는 HTML·테마·DOM을 사용하지 않는다 | [parser.test.js](../../test/parser.test.js)의 `parser_sources_do_not_import_the_renderer_theme_or_output_libraries` |
 | 해석과 출력이 원문·문서 토큰을 바꾸지 않는다 | [parser.test.js](../../test/parser.test.js)의 `the_source_string_is_never_modified_by_parsing`, [renderer.test.js](../../test/renderer.test.js)의 `render_does_not_change_the_document_and_repeats_the_same_output` |
 | 테마 교체 함수의 실패를 문서 위치가 있는 진단으로 돌려준다 | [renderer.test.js](../../test/renderer.test.js)의 `a_failing_replacement_is_a_located_diagnostic_and_shows_an_error_block` |
+| 문법 오류는 원본 없이도 위치가 있는 진단으로 검사한다 | [renderer.test.js](../../test/renderer.test.js)의 `error_case_is_a_located_diagnostic_<이름>`, `ui_error_case_is_a_diagnostic_<이름>` |
+| 원문 HTML과 위험한 주소는 출력 표식이 되지 않는다 | [renderer.test.js](../../test/renderer.test.js)의 `raw_html_and_unsafe_urls_never_reach_the_output_as_markup` |
 | 실행에 필요한 파일만 배포 목록에 담는다 | [package.test.js](../../test/package.test.js)의 `pack_contains_only_what_the_engine_runs_on` |
 
 ## 단점

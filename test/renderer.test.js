@@ -15,7 +15,7 @@ import {
   mathAssets,
 } from '../index.js';
 
-import { DOCUMENTS } from './fixtures/documents.js';
+import { DOCUMENTS, ERROR_CASES, UI_ERROR_CASES, UI_SYNTAX_ERRORS } from './fixtures/documents.js';
 import { snapshotTokens } from './support/snapshot.js';
 import { assets } from './support/synthetic.js';
 
@@ -660,4 +660,58 @@ test('footnote_ids_carry_the_page_id_so_documents_in_one_feed_do_not_collide', a
     {},
   );
   assert.match(nested.html, /id="fn-component-a-1-1-1"/);
+});
+
+// 홈페이지 원본 없이 CI가 실행하는 오류 사례 시험. 기대 문구는 원본 DirectiveError와 같은 형식(`본문 N줄 :이름: 내용`)으로 조립해 비교한다.
+const located = ({ line, directive, message }) =>
+  `${[line ? `본문 ${line}줄` : '', directive ? `:${directive}` : ''].filter(Boolean).join(' ')}: ${message}`;
+
+for (const [name, source, pattern] of ERROR_CASES) {
+  test(`error_case_is_a_located_diagnostic_${name}`, async () => {
+    const document = await parse(source);
+    const [first] = document.diagnostics;
+    assert.ok(first, `a diagnostic is expected: ${name}`);
+    assert.equal(first.severity, 'error');
+    assert.equal(first.stage, 'parse');
+    assert.equal(first.document, 'doc.md');
+    assert.match(located(first), pattern);
+    assert.ok((await render(document)).html.length > 0);
+  });
+}
+
+for (const [name, source, pattern] of UI_ERROR_CASES) {
+  test(`ui_error_case_is_a_diagnostic_${name}`, async () => {
+    const document = await parse(source);
+    const output = await render(document);
+    const [first] = [
+      ...document.diagnostics,
+      ...output.diagnostics.filter((item) => item.stage === 'render'),
+    ];
+    assert.ok(first, `a diagnostic is expected: ${name}`);
+    assert.equal(first.line, 1, name);
+    assert.match(first.message, pattern);
+    assert.match(output.html, /문서 오류/);
+  });
+}
+
+for (const [name, source, pattern] of UI_SYNTAX_ERRORS) {
+  test(`ui_syntax_error_is_one_parse_diagnostic_${name}`, async () => {
+    const { diagnostics } = await parse(source);
+    assert.equal(diagnostics.length, 1);
+    assert.equal(diagnostics[0].severity, 'error');
+    assert.equal(diagnostics[0].stage, 'parse');
+    assert.match(diagnostics[0].message, pattern);
+  });
+}
+
+test('raw_html_and_unsafe_urls_never_reach_the_output_as_markup', async () => {
+  for (const name of ['raw_html_and_unsafe_urls', 'safe_details_and_unsafe_variants']) {
+    const { html, diagnostics } = await render(await parse(DOCUMENTS[name]));
+    assert.deepEqual(diagnostics, [], name);
+    assert.doesNotMatch(html, /href="(?:javascript|data|vbscript|file):/i, name);
+    assert.doesNotMatch(html, /src="(?:javascript|data|vbscript|file):/i, name);
+    assert.doesNotMatch(html, /<script/i, name);
+    assert.doesNotMatch(html, /<img[^>]*onerror|<[a-z]+[^>]*\son[a-z]+=/i, name);
+    assert.doesNotMatch(html, /<div>/, name);
+  }
 });
