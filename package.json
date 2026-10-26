@@ -34,7 +34,7 @@
     "@vscode/markdown-it-katex": "1.1.2",
     "highlight.js": "11.12.0",
     "katex": "0.19.0",
-    "markdown-it": "15.0.2",
+    "markdown-it": "15.0.3",
     "markdown-it-deflist": "4.0.0",
     "markdown-it-footnote": "4.0.0",
     "shiki": "4.5.0",
@@ -42,7 +42,7 @@
   },
   "peerDependencies": {
     "@woonyong-choi/design-tokens": "^0.2.0",
-    "diagramplay": "^0.2.0"
+    "diagramplay": "^0.3.0"
   },
   "peerDependenciesMeta": {
     "diagramplay": {
@@ -56,7 +56,7 @@
     "eslint-plugin-sonarjs": "4.2.2",
     "globals": "17.13.0",
     "prettier": "3.9.10",
-    "diagramplay": "github:woonyong-choi/diagramplay#4850c23dae6cad989b29b6af691d5233bc9afd66"
+    "diagramplay": "github:woonyong-choi/diagramplay#0a44d42eef40b7ecbf3121d34d9b1b1920b053aa"
   },
   "overrides": {
     "katex": "0.19.0"

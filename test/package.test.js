@@ -53,11 +53,11 @@ test('every_relative_import_of_the_packed_code_is_in_the_pack', () => {
 
 test('design_and_renderer_are_peer_dependencies_pinned_to_commits_for_the_tests', () => {
   const pkg = JSON.parse(readFileSync(new URL('package.json', root), 'utf8'));
-  for (const [name, repository] of [
-    ['@woonyong-choi/design-tokens', 'design-tokens'],
-    ['diagramplay', 'diagramplay'],
+  for (const [name, repository, range] of [
+    ['@woonyong-choi/design-tokens', 'design-tokens', '^0.2.0'],
+    ['diagramplay', 'diagramplay', '^0.3.0'],
   ]) {
-    assert.equal(pkg.peerDependencies[name], '^0.2.0', name);
+    assert.equal(pkg.peerDependencies[name], range, name);
     assert.match(
       pkg.devDependencies[name],
       new RegExp(`^github:woonyong-choi/${repository}#[0-9a-f]{40}$`),
