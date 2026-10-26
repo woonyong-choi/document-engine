@@ -1,6 +1,7 @@
 // 해석을 끝낸 단위들에 문서 전체에서 유일한 값을 붙인다: 구성 요소 ID, 제목 ID, 중첩 각주 접미사.
-// 번호 순서는 기존 홈페이지 출력과 같다. 단위마다 해석 중 등록한 ID를 먼저 받고, 제목 ID를 받은 뒤,
-// 출력 순서대로 영상과 ui: 구성 요소가 번호를 받으며 그 안의 Markdown 필드 단위로 같은 일을 반복한다.
+// 구성 요소 번호 순서는 기존 홈페이지 출력과 같다. 단위마다 해석 중 등록한 ID를 먼저 받고, 출력 순서대로 영상과
+// ui: 구성 요소가 번호를 받으며 그 안의 Markdown 필드 단위로 같은 일을 반복한다. 한 줄 필드도 같은 번호를 이어 쓴다.
+// 제목 ID는 모든 구성 요소 번호를 정한 뒤 같은 순서로 붙이며 구성 요소 ID와 그 파생 ID를 피한다.
 
 /**
  * @param {{ tokens: object[], env: object }} root 문서 본문 단위
@@ -10,39 +11,49 @@
  * }} 문서 제목 목록과, 해석이 만난 링크·이미지 대상(원문 그대로, 중첩 필드 포함)
  */
 export function finalizeDocument(root) {
-  const shared = { counter: 0, headingIds: new Map(), headings: [], links: [] };
-  finalizeUnit(root, shared);
+  const shared = { counter: 0, componentIds: [], headingIds: new Map(), headings: [], links: [] };
+  numberUnit(root, shared);
+  describeUnit(root, shared);
   return { headings: shared.headings, links: shared.links };
 }
 
-function finalizeUnit(unit, shared) {
+function numberUnit(unit, shared) {
   const { env, tokens } = unit;
   for (const target of env.idSlots) assignId(target, nextId(shared, env));
-  assignHeadingIds(unit, shared);
-  collectLinks(unit, shared);
   for (const token of tokens) {
     if (token.type === 'directive' && token.meta.name === 'video') {
       token.meta.id = nextId(shared, env);
     } else if (token.type === 'fence' && token.meta?.role === 'ui') {
-      finalizeComponent(token, shared, env);
+      const { meta } = token;
+      meta.id = nextId(shared, env);
+      meta.units.forEach((field, index) => {
+        field.env.docId = `${meta.id}-${index + 1}`;
+        numberUnit(field, shared);
+      });
     }
   }
 }
 
-function finalizeComponent(token, shared, env) {
-  const { meta } = token;
-  meta.id = nextId(shared, env);
-  meta.units.forEach((field, index) => {
-    field.env.docId = `${meta.id}-${index + 1}`;
-    // 한 줄 필드는 부모의 번호를 이어받아 쓰되 되돌려 주지 않는다.
-    finalizeUnit(field, field.inline ? { ...shared } : shared);
-  });
+function describeUnit(unit, shared) {
+  assignHeadingIds(unit, shared);
+  collectLinks(unit, shared);
+  for (const token of unit.tokens) {
+    if (token.type === 'fence' && token.meta?.role === 'ui') {
+      for (const field of token.meta.units) describeUnit(field, shared);
+    }
+  }
 }
 
 function nextId(shared, env) {
   shared.counter += 1;
-  return `component-${env.pageId ?? 'page'}-${shared.counter}`;
+  const id = `component-${env.pageId ?? 'page'}-${shared.counter}`;
+  shared.componentIds.push(id);
+  return id;
 }
+
+// 구성 요소 ID 자체와 그 ID로 시작하는 파생 ID(`-tip`, `-tab-0`, `-panel-0`, `-video` 등)는 제목이 쓸 수 없다.
+const takenByComponent = (shared, id) =>
+  shared.componentIds.some((component) => id === component || id.startsWith(`${component}-`));
 
 function assignId(target, id) {
   target.id = id;
@@ -66,19 +77,22 @@ function assignHeadingIds(unit, shared) {
     const inline = tokens[index + 1];
     const title = toHeadingText(inline.children) || inline.content;
     // 기존 문서의 앵커 주소는 목차 표시 문구와 독립적으로 유지한다.
-    const slug =
+    const text =
       inline.content
         .toLowerCase()
         .replace(/[^\p{L}\p{N}]+/gu, '-')
         .replace(/^-|-$/g, '') || 'section';
-    // 다른 제목의 `제목-2` 같은 글자와 겹치지 않도록 예약된 ID는 건너뛴다.
+    // 구성 요소 ID와 겹치는 제목은 번호를 붙여도 파생 ID와 겹치므로 앞에 heading-을 붙인다.
+    const prefixed = (local) => (env.pageId ? `${env.pageId}-${local}` : local);
+    const slug = takenByComponent(shared, prefixed(text)) ? `heading-${text}` : text;
+    // 다른 제목의 `제목-2` 같은 글자나 구성 요소 ID와 겹치지 않도록 예약된 ID는 건너뛴다.
     let count = shared.headingIds.get(slug) ?? 0;
     let localId;
     do localId = ++count === 1 ? slug : `${slug}-${count}`;
-    while (shared.headingIds.has(`#${localId}`));
+    while (shared.headingIds.has(`#${localId}`) || takenByComponent(shared, prefixed(localId)));
     shared.headingIds.set(slug, count);
     shared.headingIds.set(`#${localId}`, 1);
-    const id = env.pageId ? `${env.pageId}-${localId}` : localId;
+    const id = prefixed(localId);
     token.attrSet('id', id);
     const level = Number(token.tag.slice(1));
     shared.headings.push({ id, title, level, line: env.fenceLine ?? (token.map?.[0] ?? 0) + 1 });

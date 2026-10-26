@@ -11,6 +11,7 @@ import {
   parseTabOptions,
 } from './directive-syntax.js';
 import { DirectiveError, reportSyntaxError } from './diagnostics.js';
+import { findMarkEnd } from './inline-marks.js';
 import { reserveId } from './units.js';
 
 // 목록이나 인용 안에서는 닫는 줄의 위치를 들여쓰기로 판단할 수 없어 쓰지 못한다.
@@ -60,6 +61,11 @@ function checksOf(env) {
         : '',
     icon: (value) => (icons?.has && !icons.has(value) ? `없는 아이콘입니다: ${value}` : ''),
   };
+}
+
+// `::글::`처럼 같은 줄에서 닫히는 강조로 시작하는 줄은 블록이 아니라 문단이다. 강조 규칙(markdown.js)과 같은 조건을 쓴다.
+function isInlineMark(found, text) {
+  return found.kind === 'leaf' && found.flat && findMarkEnd(text, 0, '::') > 0;
 }
 
 // 다음 비어 있지 않은 줄의 글자. 없으면 빈 문자열이다.
@@ -173,9 +179,11 @@ function restoreState(state, saved) {
 
 function directiveBlock(state, startLine, endLine, silent) {
   if (state.sCount[startLine] - state.blkIndent >= 4) return false;
-  const found = classifyLine(lineAt(state, startLine));
-  if (found.kind === 'text') return false;
-  if (silent) return found.kind === 'open' || found.kind === 'leaf';
+  const text = lineAt(state, startLine);
+  const found = classifyLine(text);
+  if (found.kind === 'text' || isInlineMark(found, text)) return false;
+  // 문단 바로 다음 줄의 닫는 줄·형식이 틀린 줄도 문단을 끊고 진단한다. 글자로 흡수하지 않는다.
+  if (silent) return true;
   const scope = { end: startLine + 1 };
   const saved = saveState(state);
   const depth = state.env.directiveStack?.length ?? 0;
@@ -211,7 +219,6 @@ function parseDirective(state, startLine, endLine, found, scope) {
     fail('블록 줄 형식이 잘못되었습니다. :::이름 옵션 또는 닫는 :::end를 쓰세요');
   if (!PARENT_TYPES.has(state.parentType)) fail('목록이나 인용 안에서는 블록을 쓸 수 없습니다');
   const spec = Object.hasOwn(BLOCKS, found.name) ? BLOCKS[found.name] : null;
-  if (found.kind === 'leaf' && found.flat && lineAt(state, startLine).endsWith('::')) return false;
   if (!spec) fail(`알 수 없는 블록입니다. 사용할 수 있는 이름: ${Object.keys(BLOCKS).join(', ')}`);
   if ((found.kind === 'leaf') !== Boolean(spec.leaf)) {
     fail(
@@ -404,7 +411,12 @@ function directiveInline(state, silent) {
   if (!match || !Object.hasOwn(INLINES, match[1])) return false;
   const [name, label] = [match[1], match[2]];
   const spec = INLINES[name];
-  const fail = failer(state.env, undefined, name);
+  // 줄은 해석을 감싼 쪽(parseInlineContent)이 오류 위치(offset)에서 센다.
+  const fail = (message) => {
+    const error = new DirectiveError(message, { page: state.env.pageId, name });
+    error.offset = state.pos;
+    throw error;
+  };
   const checks = checksOf(state.env);
   let end = state.pos + match[0].length;
   let attrs = Object.create(null);
@@ -429,6 +441,7 @@ function directiveInline(state, silent) {
 }
 
 // 인라인 오류에 줄 번호를 붙이기 위해 기본 inline 규칙을 같은 동작에 오류 기록만 더해 바꾼다.
+// 줄은 인라인 토큰의 시작 줄에 오류 위치 앞의 줄바꿈 수를 더한 값이다.
 function parseInlineContent(state) {
   for (const token of state.tokens) {
     if (token.type !== 'inline') continue;
@@ -436,18 +449,21 @@ function parseInlineContent(state) {
       state.md.inline.parse(token.content, state.md, state.env, token.children);
     } catch (error) {
       if (!(error instanceof DirectiveError)) throw error;
-      const located =
-        error.line || !token.map
-          ? error
-          : new DirectiveError(error.detail, {
-              page: error.page,
-              line: token.map[0] + 1,
-              name: error.directive,
-            });
-      reportSyntaxError(state.env, located);
+      reportSyntaxError(state.env, locateInline(error, token));
       const text = new state.Token('text', '', 0);
       text.content = token.content;
       token.children = [text];
     }
   }
+}
+
+function locateInline(error, token) {
+  if (error.line || !token.map) return error;
+  const before = token.content.slice(0, error.offset ?? 0);
+  const breaks = before.split('\n').length - 1;
+  return new DirectiveError(error.detail, {
+    page: error.page,
+    line: token.map[0] + 1 + breaks,
+    name: error.directive,
+  });
 }

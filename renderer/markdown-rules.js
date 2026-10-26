@@ -218,10 +218,14 @@ function installFenceRules(md) {
   rules.code_block = (tokens, index, options, env) => {
     const { render } = env;
     const code = `<code class="language-plaintext">${render.kit.escape(tokens[index].content)}</code>`;
-    return callComponent(render, 'code', undefined, {
-      code,
-      language: render.highlighter.codeLanguage().label,
-    });
+    const line = env.fenceLine ?? (tokens[index].map?.[0] ?? 0) + 1;
+    return callComponent(
+      render,
+      'code',
+      undefined,
+      { code, language: render.highlighter.codeLanguage().label },
+      line,
+    );
   };
   rules.fence = (tokens, index, options, env) => {
     const token = tokens[index];

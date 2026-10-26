@@ -447,3 +447,111 @@ test('links_in_nested_component_fields_stay_on_the_fence_line_while_plain_text_c
     ],
   );
 });
+
+// #22 해석 경계: 문서 안 DOM id 유일성, 줄 첫머리 강조, 진단 위치, 작업 항목, ui 데이터 형식.
+const domIds = (html) => [...html.matchAll(/\sid="([^"]+)"/g)].map((match) => match[1]);
+const renderIds = async (source, context = {}) => {
+  const { documentEngine } = await import('../index.js');
+  const document = await documentEngine.parseDocument(source, { id: 'doc.md', ...context });
+  return domIds((await documentEngine.renderDocument(document)).html);
+};
+const duplicates = (ids) => ids.filter((id, index) => ids.indexOf(id) !== index);
+
+test('a_tip_inside_an_inline_field_and_a_later_component_get_distinct_ids', async () => {
+  const source =
+    "```ui:fineprint\nbody: 'a :tip[팁]{text=설명}'\n```\n\n```ui:tooltip\nlabel: x\ntext: y\n```\n";
+  for (const pageId of [undefined, 'p']) {
+    const ids = await renderIds(source, { pageId });
+    assert.ok(ids.length >= 2, String(pageId));
+    assert.deepEqual(duplicates(ids), [], String(pageId));
+  }
+});
+
+test('heading_ids_without_a_page_id_never_take_a_component_id', async () => {
+  const source =
+    '# Component Page 1\n\n## Component Page 2 Tip\n\n```ui:callout\ntitle: t\nbody: b\n```\n\n```ui:tooltip\nlabel: x\ntext: y\n```\n';
+  const ids = await renderIds(source);
+  assert.deepEqual(duplicates(ids), []);
+  assert.ok(ids.includes('component-page-2-tip'));
+  const { metadata } = parseDocument(source, { id: 'doc.md' });
+  assert.deepEqual(
+    metadata.headings.map((heading) => heading.id),
+    ['heading-component-page-1', 'heading-component-page-2-tip'],
+  );
+});
+
+test('a_highlight_at_the_start_of_a_line_closed_on_the_same_line_is_text_not_a_block', () => {
+  const document = parse('intro line\n::important stuff:: more\n\n::name text::\n');
+  assert.deepEqual(document.diagnostics, []);
+  const marks = allTokens(document.tokens).filter((token) => token.type === 'mark_open');
+  assert.equal(marks.length, 2);
+  const texts = allTokens(document.tokens)
+    .filter((token) => token.type === 'text')
+    .map((token) => token.content);
+  assert.ok(texts.includes('intro line'));
+  assert.ok(texts.includes(' more'));
+});
+
+test('a_closing_line_right_after_a_paragraph_is_diagnosed_not_kept_as_text', () => {
+  for (const [source, line, pattern] of [
+    ['문단\n:::\n', 2, /여는 줄 없이 닫는 줄이 있습니다/],
+    ['문단\n:::end\n', 2, /여는 블록 없이 :::end 가 있습니다/],
+    ['문단\n:::  note\n', 2, /블록 줄 형식이 잘못되었습니다/],
+  ]) {
+    const document = parse(source);
+    assert.equal(document.diagnostics.length, 1, source);
+    assert.equal(document.diagnostics[0].line, line, source);
+    assert.match(document.diagnostics[0].message, pattern, source);
+  }
+});
+
+test('a_reference_definition_named_like_a_task_marker_keeps_the_item_a_task_without_a_link', () => {
+  const document = parse('- [x] done\n- [ ] open\n\n[x]: /url\n[ ]: /other\n');
+  const items = document.tokens.filter((token) => token.type === 'list_item_open');
+  assert.deepEqual(
+    items.map((token) => token.meta?.task),
+    ['done', 'todo'],
+  );
+  const kinds = allTokens(document.tokens).map((token) => token.type);
+  assert.equal(kinds.filter((type) => type === 'link_open').length, 0);
+  assert.deepEqual(document.metadata.links, []);
+  const inlines = document.tokens.filter((token) => token.type === 'inline').slice(0, 2);
+  assert.deepEqual(
+    inlines.map((token) => token.children.at(-2).content),
+    [' done', ' open'],
+  );
+});
+
+test('inline_errors_point_to_the_line_inside_the_paragraph', () => {
+  const plain = parse('첫 줄\n둘째 :tip[단어]\n');
+  assert.equal(plain.diagnostics[0].line, 2);
+  const marked = parse('첫 줄\n둘째\n셋째 ::강조 :tip[단어]::\n');
+  assert.equal(marked.diagnostics[0].line, 3);
+  const nested = parse('```ui:callout\ntitle: t\nbody: "첫 줄\\n둘째 :tip[x]"\n```\n');
+  assert.equal(nested.diagnostics[0].line, 1);
+  assert.equal(nested.diagnostics[0].nestedLine, 2);
+});
+
+test('ui_field_types_are_checked_at_parse_time_with_the_field_line', () => {
+  const cases = [
+    ['```ui:syntax-examples\nitems: 3\n```\n', 2, /^items: 항목 목록이어야 합니다$/],
+    ['```ui:callout\ntitle: t\nbody: {a: 1}\n```\n', 3, /^body: 글이어야 합니다$/],
+    [
+      '```ui:tabs\nitems:\n  - label: A\n    body: [1]\n```\n',
+      4,
+      /^items\.0\.body: 글이어야 합니다$/,
+    ],
+    ['```ui:cards\nitems:\n  - 3\n```\n', 3, /^items\.0: 항목/],
+    ['```ui:callout\ntitle: [x]\nbody: b\n```\n', 2, /^title: 글이어야 합니다$/],
+    ['```ui:feature-list\ntitle: t\n```\n', 1, /^필수 필드가 없습니다: items$/],
+  ];
+  for (const [source, line, pattern] of cases) {
+    const document = parse(`문단\n\n${source}`);
+    assert.equal(document.diagnostics.length, 1, source);
+    const [diagnostic] = document.diagnostics;
+    assert.equal(diagnostic.stage, 'parse', source);
+    assert.match(diagnostic.message, pattern, source);
+    assert.equal(diagnostic.line, line + 2, source);
+    assert.equal(document.tokens.at(-1).meta.role, 'error', source);
+  }
+});

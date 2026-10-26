@@ -715,3 +715,33 @@ test('raw_html_and_unsafe_urls_never_reach_the_output_as_markup', async () => {
     assert.doesNotMatch(html, /<div>/, name);
   }
 });
+
+test('a_failing_indented_code_block_replacement_reports_its_line', async () => {
+  const theme = {
+    components: {
+      code: () => {
+        throw new Error('code failed');
+      },
+    },
+  };
+  const { diagnostics } = await render(await parse('문단\n\n    들여쓴 코드\n'), { theme });
+  assert.deepEqual(
+    diagnostics.map(({ component, line }) => [component, line]),
+    [['code', 3]],
+  );
+});
+
+test('ui_type_errors_never_reach_the_output_as_javascript_messages_or_object_text', async () => {
+  for (const source of [
+    '```ui:syntax-examples\nitems: 3\n```\n',
+    '```ui:callout\nbody: {a: 1}\n```\n',
+    '```ui:definitions\nitems:\n  - term: a\n    body: {b: 1}\n```\n',
+  ]) {
+    const { html, diagnostics } = await render(await parse(source));
+    assert.doesNotMatch(html, /\[object Object\]|is not a function/, source);
+    assert.ok(
+      diagnostics.every((item) => item.stage === 'parse'),
+      source,
+    );
+  }
+});

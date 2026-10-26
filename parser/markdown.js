@@ -6,6 +6,7 @@ import deflist from 'markdown-it-deflist';
 import footnote from 'markdown-it-footnote';
 
 import { installDirectives } from './directives.js';
+import { findMarkEnd } from './inline-marks.js';
 import { installFences } from './ui-fences.js';
 
 const BACKSLASH = String.fromCharCode(92);
@@ -40,50 +41,36 @@ export function createParser() {
   return md;
 }
 
-// 닫는 표식의 위치. 역슬래시로 이스케이프한 표식은 건너뛴다. 없으면 -1이다.
-function findClosingMarker(src, from, marker) {
-  let end = from;
-  while ((end = src.indexOf(marker, end)) !== -1) {
-    let escapes = 0;
-    for (let at = end - 1; at >= 0 && src[at] === BACKSLASH; at -= 1) escapes += 1;
-    if (escapes % 2 === 0) return end;
-    end += marker.length;
-  }
-  return -1;
-}
-
 // 같은 낱말 표식 `::강조::`, `==강조==`로 mark를 만든다. 공백으로 시작하거나 끝나는 표식은 글자 그대로 둔다.
 function markRule(marker) {
   return (state, silent) => {
     const start = state.pos;
-    const first = state.src[start + marker.length] ?? ' ';
-    if (
-      state.src.slice(start, start + marker.length) !== marker ||
-      /\s/.test(first) ||
-      first === marker[0]
-    ) {
-      return false;
-    }
-    const end = findClosingMarker(state.src, start + marker.length, marker);
-    if (
-      end < 0 ||
-      /\s/.test(state.src[end - 1]) ||
-      state.src.slice(start + marker.length, end).includes('\n')
-    ) {
-      return false;
-    }
+    const end = findMarkEnd(state.src, start, marker);
+    if (end < 0) return false;
     if (!silent)
-      pushWrapped(state, 'mark_open', 'mark', state.src.slice(start + marker.length, end));
+      pushWrapped(
+        state,
+        'mark_open',
+        'mark',
+        state.src.slice(start + marker.length, end),
+        start + marker.length,
+      );
     state.pos = end + marker.length;
     return true;
   };
 }
 
 // 열기 토큰, 안쪽 인라인, 닫기 토큰을 차례로 밀어 넣는다. 안쪽 글은 인라인 규칙으로 다시 해석한다.
-function pushWrapped(state, openType, tag, inner) {
+// 안쪽 오류의 위치(offset)는 바깥 원문 기준으로 바꿔 다시 던진다. 줄 번호는 이 위치에서 센다.
+function pushWrapped(state, openType, tag, inner, innerStart) {
   state.push(openType, tag, 1);
   const children = [];
-  state.md.inline.parse(inner, state.md, state.env, children);
+  try {
+    state.md.inline.parse(inner, state.md, state.env, children);
+  } catch (error) {
+    if (typeof error?.offset === 'number') error.offset += innerStart;
+    throw error;
+  }
   state.tokens.push(...children);
   state.push(openType.replace(/_open$/, '_close'), tag, -1);
 }
@@ -99,7 +86,7 @@ function scriptRule(marker, tag) {
       end += src[end] === BACKSLASH ? 2 : 1;
     }
     if (end >= src.length || end === start + 1) return false;
-    if (!silent) pushWrapped(state, `${tag}_open`, tag, src.slice(start + 1, end));
+    if (!silent) pushWrapped(state, `${tag}_open`, tag, src.slice(start + 1, end), start + 1);
     state.pos = end + 1;
     return true;
   };
@@ -190,9 +177,30 @@ function taskItems(state) {
   }
 }
 
+// `[x]: 주소` 같은 참조 정의가 있으면 앞머리 `[x]`가 링크 토큰이 된다. GFM처럼 작업 표식이 앞서므로 글자 토큰으로 되돌린다.
+function unlinkMarker(state, inline) {
+  const [open, label, close, next] = inline.children;
+  const linked =
+    open?.type === 'link_open' &&
+    label?.type === 'text' &&
+    close?.type === 'link_close' &&
+    inline.content.startsWith(`[${label.content}] `);
+  if (!linked) return;
+  const text = newToken(state, 'text', 0);
+  text.content = `[${label.content}]`;
+  if (next?.type === 'text') {
+    next.content = text.content + next.content;
+    inline.children.splice(0, 3);
+  } else {
+    inline.children.splice(0, 3, text);
+  }
+}
+
 function markTaskItem(state, tokens, index, task) {
   const inline = tokens[index];
   const item = tokens[index - 2];
+  unlinkMarker(state, inline);
+  if (inline.children[0]?.type !== 'text') return;
   item.meta = { task };
   if (task === 'cancelled') {
     inline.content = inline.content.slice(4);
