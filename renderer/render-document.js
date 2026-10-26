@@ -38,6 +38,7 @@ export async function renderDocument(document, context = {}) {
   const theme = await loadDefaultTheme();
   const components = resolveComponents(theme.components, context.theme);
   const highlighter = await loadHighlighter();
+  await highlighter.prepare(codeInfos(document.tokens));
   renderer ??= createRenderer();
   const usedAssets = new Map();
   const kit = createKit(theme, context, usedAssets);
@@ -68,6 +69,18 @@ export async function renderDocument(document, context = {}) {
     })),
     theme: context.theme?.name ?? theme.name,
   };
+}
+
+// 문서와 ui: 구성 요소의 안쪽 필드에 있는 코드 펜스의 언어 정보. 이 언어들의 문법만 불러온다.
+function* codeInfos(tokens) {
+  for (const token of tokens) {
+    if (token.type !== 'fence') continue;
+    if (token.meta?.role === 'ui') {
+      for (const unit of token.meta.units) yield* codeInfos(unit.tokens);
+    } else {
+      yield token.info;
+    }
+  }
 }
 
 function diagramStatus(diagram) {

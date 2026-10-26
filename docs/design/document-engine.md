@@ -112,6 +112,14 @@ console.log(output.diagnostics);
 
 같은 문서를 다시 그리거나 다른 테마로 그려도 문서 토큰은 바뀌지 않는다. 아이콘 SVG ID(`icon-N-`)는 디자인 정본이 프로세스 전체 카운터로 만들므로 호출 이력에 따라 숫자가 달라진다. 출력 문자열은 호출마다 달라질 수 있다. 시험에서는 아이콘 ID를 정규화해 구조를 비교한다.
 
+### 코드 강조
+
+코드 펜스의 언어 이름·별칭·표시 이름은 highlight.js 언어 목록 하나가 기준이다. 같은 이름(또는 별칭)의 TextMate 문법이 shiki에 있으면 shiki로, 없으면 highlight.js로 분석한다. 두 분석기의 결과는 같은 구문 역할(`ui.SyntaxToken`, `ui.syntaxClass`)로 출력한다. 목록에 없는 언어와 `text`·`plaintext`는 강조하지 않는다.
+
+TextMate 문법은 `renderDocument`가 문서와 `ui:` 구성 요소 안의 펜스 언어를 모아 그 문법만 불러온다. 한 번 불러온 문법은 프로세스 안에서 다시 쓴다.
+
+코드 블록 하나의 TextMate 분석 시간은 `HIGHLIGHT_TIME_LIMIT_MS`(500ms)로 제한한다. shiki가 한 줄에 쓰는 기본 제한과 같은 값을 블록 전체에 적용한다. 제한을 넘거나 한 줄이라도 분석이 중간에 멈추면 그 블록은 강조 없이 escape한 원문으로 출력하고 진단은 남기지 않는다. 같은 문서의 다른 블록은 계속 강조한다. [renderer.test.js](../../test/renderer.test.js)의 `a_code_block_over_the_highlight_time_limit_is_output_as_escaped_source`가 4만 줄 블록으로 검사한다.
+
 ### 구성 요소 교체
 
 테마는 스타일뿐 아니라 구성 요소 출력 함수를 교체한다. 교체 함수는 `(props, kit)`을 받아 HTML 문자열 또는 `kit.ui.isTrusted`가 인정하는 값을 돌려준다. 엔진은 반환값을 문자열로 바꿔 출력한다. props는 JSON으로 표현할 수 있는 값만 갖는다. 호출마다 props를 깊게 복사해 넘긴다. 함수가 props를 바꿔도 해석된 문서와 다음 출력은 변하지 않는다.
