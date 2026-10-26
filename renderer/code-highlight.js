@@ -1,6 +1,14 @@
 // 언어 문법의 scope를 공통 구문 역할로 연결한다. 색과 HTML은 테마 구성 요소가 정한다.
-// 문법 분석기는 처음 렌더링할 때 한 번 불러온다.
+// 언어 목록(이름·별칭·표시 이름)의 기준은 highlight.js 하나다. 같은 이름의 TextMate 문법이 shiki에 있으면 그 문법으로,
+// 없으면 highlight.js로 분석한다. TextMate 문법은 문서가 쓰는 언어만 렌더링 전에 불러온다.
 let loading;
+
+/**
+ * 코드 블록 하나의 TextMate 분석 시간 제한(밀리초). 넘으면 강조하지 않고 escape한 원문을 출력한다.
+ * 값은 shiki가 한 줄에 쓰는 기본 제한(tokenizeTimeLimit 500ms)과 같다. 이 값을 블록 전체에 적용해 한 블록이 렌더링을
+ * 그 이상 붙잡지 않는다. 일반 블록(수백 줄)은 수 밀리초 안에 끝난다.
+ */
+export const HIGHLIGHT_TIME_LIMIT_MS = 500;
 
 const LANGUAGE_NAME = /^[\w+#.-]+$/;
 const PLAIN = Object.freeze({ id: 'plaintext', label: 'Plain text' });
@@ -79,7 +87,13 @@ const RUN_ALIASES = Object.freeze({
   'run-web': 'html',
 });
 
-/** @returns {Promise<{ codeLanguage(info?: string): { id: string, label: string }, highlightCode(source: string, language: string, ui: object): string }>} */
+/**
+ * @returns {Promise<{
+ *   codeLanguage(info?: string): { id: string, label: string },
+ *   prepare(infos: Iterable<string>): Promise<void>,
+ *   highlightCode(source: string, language: string, ui: object, options?: { timeLimit?: number }): string,
+ * }>}
+ */
 export function loadHighlighter() {
   loading ??= createEngine();
   return loading;
@@ -91,22 +105,36 @@ async function createEngine() {
     import('shiki'),
   ]);
   const languages = collectLanguages(hljs, bundledLanguages);
-  const highlighter = await createHighlighter({
-    langs: [
-      ...new Set([...languages.values()].map((language) => language.grammar).filter(Boolean)),
-    ],
-    themes: [{ name: 'syntax-roles', settings: [] }],
-  });
+  const highlighter = await createHighlighter({ langs: [], themes: [] });
+  const loaded = new Set();
+  const lookup = (info = '') => {
+    const word = info.trim().split(/\s+/)[0].toLowerCase();
+    return LANGUAGE_NAME.test(word) ? languages.get(word) : undefined;
+  };
   return {
     codeLanguage(info = '') {
-      const word = info.trim().split(/\s+/)[0].toLowerCase();
-      const language = LANGUAGE_NAME.test(word) ? languages.get(word) : undefined;
+      const language = lookup(info);
       return language ? { id: language.id, label: language.label } : PLAIN;
     },
-    highlightCode(source, language, ui) {
+    // 문서가 쓰는 언어의 TextMate 문법만 불러온다. 이미 불러온 문법은 다시 읽지 않는다.
+    async prepare(infos) {
+      const grammars = new Set();
+      for (const info of infos) {
+        const grammar = lookup(info)?.grammar;
+        if (grammar && !loaded.has(grammar)) grammars.add(grammar);
+      }
+      if (!grammars.size) return;
+      await highlighter.loadLanguage(...grammars);
+      for (const grammar of grammars) loaded.add(grammar);
+    },
+    highlightCode(source, language, ui, { timeLimit = HIGHLIGHT_TIME_LIMIT_MS } = {}) {
       const grammar = languages.get(language)?.grammar;
-      if (grammar) return textMateCode(highlighter, source, grammar, ui);
-      if (PLAIN_NAMES.has(language) || !languages.has(language)) return ui.escape(source);
+      if (grammar && loaded.has(grammar)) {
+        return textMateCode(highlighter.getLanguage(grammar), source, ui, timeLimit);
+      }
+      if (grammar || PLAIN_NAMES.has(language) || !languages.has(language)) {
+        return ui.escape(source);
+      }
       // TextMate에 없는 기존 언어도 지원한다. 두 분석기의 출력은 같은 역할과 CSS를 사용한다.
       return hljs
         .highlight(source, { language, ignoreIllegals: true })
@@ -142,15 +170,9 @@ function collectLanguages(hljs, bundledLanguages) {
   return languages;
 }
 
-function textMateCode(highlighter, source, lang, ui) {
-  // 두 분석 단계가 시간 제한으로 서로 다르게 잘리지 않게 한다.
-  const lines = highlighter.codeToTokensBase(source, {
-    lang,
-    theme: 'syntax-roles',
-    includeExplanation: 'scopeName',
-    tokenizeTimeLimit: 0,
-  });
-  let end = 0;
+// 줄마다 TextMate 문법으로 분석한다. 블록 전체가 시간 제한을 넘거나 한 줄이라도 끝까지 분석하지 못하면 escape한 원문을 낸다.
+function textMateCode(grammar, source, ui, timeLimit) {
+  const deadline = performance.now() + timeLimit;
   const parts = [];
   const append = (text, role) => {
     if (!text) return;
@@ -158,25 +180,35 @@ function textMateCode(highlighter, source, lang, ui) {
     if (previous && previous.role === role) previous.text += text;
     else parts.push({ text, role });
   };
-  for (const token of lines.flat()) {
-    append(source.slice(end, token.offset));
-    for (const part of token.explanation ?? [{ content: token.content, scopes: [] }]) {
-      append(part.content, roleOf(part.scopes));
+  let state = null;
+  let offset = 0;
+  for (const match of source.matchAll(/[^\r\n]*(\r\n|\r|\n|$)/g)) {
+    if (match.index >= source.length && match[0] === '') break;
+    const line = match[0].slice(0, match[0].length - match[1].length);
+    if (line) {
+      const remaining = deadline - performance.now();
+      if (remaining <= 0) return ui.escape(source);
+      const result = grammar.tokenizeLine(line, state, Math.ceil(remaining));
+      if (result.stoppedEarly) return ui.escape(source);
+      for (const token of result.tokens) {
+        append(line.slice(token.startIndex, token.endIndex), roleOf(token.scopes));
+      }
+      state = result.ruleStack;
     }
-    end = token.offset + token.content.length;
+    append(match[1]);
+    offset += match[0].length;
   }
-  append(source.slice(end));
+  append(source.slice(offset));
   return parts.map((part) => String(ui.SyntaxToken(part))).join('');
 }
 
-function roleOf(scopes) {
-  const names = scopes.map((scope) => scope.scopeName);
+function roleOf(names) {
   const javaField =
     names.includes('variable.other.definition.java') &&
     names.includes('meta.class.body.java') &&
     !names.includes('meta.method.body.java');
   if (javaField) return 'property';
-  for (const { scopeName } of scopes.toReversed()) {
+  for (const scopeName of names.toReversed()) {
     const match = SCOPES.find(([pattern]) => pattern.test(scopeName));
     if (match) return match[1];
   }

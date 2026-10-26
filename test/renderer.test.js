@@ -745,3 +745,36 @@ test('ui_type_errors_never_reach_the_output_as_javascript_messages_or_object_tex
     );
   }
 });
+
+// #23 코드 강조 시간 제한: 한 블록의 TextMate 분석이 제한을 넘으면 escape한 원문을 낸다.
+test('a_code_block_over_the_highlight_time_limit_is_output_as_escaped_source', async () => {
+  const line = 'const task = { title: "<Read>", done: false }; // 주석 & 끝\n';
+  const source = line.repeat(40000);
+  const document = await parse(`\`\`\`javascript\n${source}\`\`\`\n`);
+  const started = performance.now();
+  const { html, diagnostics } = await render(document);
+  const elapsed = performance.now() - started;
+  assert.deepEqual(diagnostics, []);
+  assert.doesNotMatch(html, /app-syntax-/);
+  assert.ok(
+    html.includes(
+      `<code class="language-javascript">${line.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;')}`,
+    ),
+  );
+  assert.ok(elapsed < 3000, `render took ${Math.round(elapsed)}ms`);
+  // 같은 언어의 짧은 블록은 계속 강조한다.
+  const short = await render(await parse(`\`\`\`javascript\n${line}\`\`\`\n`));
+  assert.match(short.html, /app-syntax-/);
+});
+
+test('only_the_grammars_a_document_uses_are_loaded', async () => {
+  const { loadHighlighter } = await import('../renderer/code-highlight.js');
+  const highlighter = await loadHighlighter();
+  const ui = {
+    escape: (text) => text,
+    SyntaxToken: ({ text, role }) => `[${role ?? '-'}:${text}]`,
+  };
+  assert.equal(highlighter.highlightCode('fn main() {}', 'rust', ui), 'fn main() {}');
+  await highlighter.prepare(['rust']);
+  assert.match(highlighter.highlightCode('fn main() {}', 'rust', ui), /\[keyword:fn\]/);
+});
