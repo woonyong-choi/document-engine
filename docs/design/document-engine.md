@@ -42,19 +42,28 @@ console.log(output.diagnostics);
 
 ### 진입점
 
-`documentEngine`은 호출자가 `parseDocument(source, { id })`와 `renderDocument(document, { id })`로 부르는 객체다. 문법 확인 함수의 기본값(아이콘 카탈로그, 주소 정책)은 기본 테마에서 채운다.
+패키지 `exports`는 두 진입점만 연다. 그 밖의 내부 파일(`document-engine/renderer/kit.js` 등)은 패키지 이름으로 import할 수 없다(`ERR_PACKAGE_PATH_NOT_EXPORTED`).
 
-독립 해석기는 `parser/parse-document.js`의 `parseDocument`로 가져온다. 동기 함수이며 검증 함수는 호출자가 제공한다. 패키지 루트의 `parseDocument`와 `documentEngine.parseDocument`는 기본 테마의 검증 함수를 보충하는 비동기 연결 함수다.
+| 진입점 | 내용 |
+|---|---|
+| `document-engine` | `parseDocument`(비동기), `renderDocument`, `documentEngine`, `compileDiagram`, `compileDiagrams`, `mathAssets`, `MATH_STYLESHEET`, `usesMath`, `ThemeError`, `DEFAULT_THEME_FILES` |
+| `document-engine/parser` | `parseDocumentSync`(동기) |
+
+`documentEngine`은 호출자가 `parseDocument(source, { id })`와 `renderDocument(document, { id })`로 부르는 객체다. 루트 `parseDocument`는 문법 확인 함수와 값 목록의 기본값(아이콘 카탈로그, 주소 정책, 폭·카드 모양 목록)을 기본 테마에서 채운 뒤 `parseDocumentSync`를 부르는 비동기 함수다.
+
+`parseDocumentSync`는 테마 없이 동기로 해석한다. 검증 함수와 값 목록은 호출자가 제공하고, 주지 않은 항목은 해석 단계에서 확인하지 않는다. 해석기 폴더는 디자인 패키지·DiagramPlay·렌더러·테마를 import하지 않는다. [parser.test.js](../../test/parser.test.js)의 경계 시험이 여러 줄 import, `export ... from`, 동적 `import()`까지 검사한다.
 
 ### 해석 문맥
 
 | 필드 | 뜻 |
 |---|---|
-| id | 문서 식별자. 진단에 붙는다 |
+| id | 문서 식별자. 비어 있지 않은 문자열이며 없으면 `TypeError`. 진단에 붙는다 |
 | pageId | 구성 요소·제목 ID 접두사. `[\w-]+`만 허용한다 |
 | assets.exists(name) | 자산 이름이 있는지. 없으면 존재를 확인하지 않는다 |
 | icons.has(name) | 아이콘이 카탈로그에 있는지 |
 | urls.isSafe(url) | 문서에 쓸 수 있는 주소인지 |
+| vocabulary.widths | 폭 옵션(`width`, `w-narrow` 등)의 값 목록. 루트 `parseDocument`는 디자인 정본 `WIDTHS` |
+| vocabulary.cardVariants | `:::cards`의 `variant` 값 목록. 루트 `parseDocument`는 디자인 정본 `CARD_VARIANTS` |
 
 호스트의 파일 시스템 객체는 전달하지 않는다. 원문 문자열은 바꾸지 않는다.
 
@@ -92,13 +101,20 @@ console.log(output.diagnostics);
 | runtime | 필요한 정본 runtime 파일 이름(`document.js`, `video.js` 등) |
 | math | 수식이 있으면 true. KaTeX 스타일·글꼴은 `mathAssets()` |
 | diagrams | `{ source, line, status: embedded, pending, failed }` |
-| theme | 적용한 테마 이름. 기본값은 `default` |
+| theme | 적용한 테마 이름. 테마를 주지 않으면 `default`, 이름 없는 교체 테마는 `custom` |
+
+출력 문맥에서 호스트 전용 값을 받는다. 엔진에는 특정 사이트의 자산 이름이나 언어 별칭을 두지 않는다.
+
+| 출력 문맥 | 뜻 |
+|---|---|
+| deviceOverlay | 기기 틀(`frame=iphone` 영상, `ui:device`, `ui:demos`) 위에 겹칠 그림의 자산 이름. 없으면 겹치지 않는다. 홈페이지는 `bezel-iphone6-overlay.svg` |
+| codeAliases | `{ 이름: { language, label? } }`. 펜스 첫 낱말이 이름과 같으면 `language`로 강조하고 `label`을 표시한다. 홈페이지는 `run-python` 같은 실행용 펜스를 `Python · 실행 미지원`으로 넘긴다 |
 
 구성 요소의 자산 주소는 출력 문맥의 `assets.url(name)`으로 조회하고, 함수가 없으면 `/assets/<name>`을 쓴다. 디자인 패키지의 URL 정책(https·mailto·`/` 경로·`#`)을 통과한 주소만 기록하며 출력할 때 속성에 맞게 한 번만 이스케이프한다. 선택적으로 전달하는 `assets.size(name)`은 양의 정수 한 쌍 또는 크기를 모를 때 `undefined`를 반환한다. 결과를 조립할 때 주소를 다시 조회하지 않는다.
 
 일반 Markdown 이미지의 주소는 원문을 사용하므로 `assets.url`로 바꾸거나 반환값 `assets`에 모으지 않는다. 해당 이미지에도 `assets.size`로 크기를 제공할 수 있다. 일반 Markdown의 링크·이미지 대상은 해석 결과의 `metadata.links`에서 확인한다. `::figure`의 `src` 같은 구성 요소 이미지 필드는 이 목록에 없으므로 해석된 토큰의 속성과 출력의 `assets`도 따로 확인한다. `assets`는 사용한 주소 목록이지 파일 존재 확인 결과가 아니며, 실제 존재 여부는 호스트가 해석 문맥의 `assets.exists` 등으로 검사한다. 이 구분은 [자산 조회 도구](../../renderer/kit.js)와 [이미지 출력 규칙](../../renderer/markdown-rules.js)에 있다.
 
-`diagramplay` 펜스를 권장하며 기존 `thinkflow`와 `torso` 펜스도 같은 도표 분기로 해석한다. 세 펜스는 `width`와 `name=<이름>`을 받는다. 이름은 영문 소문자·숫자와 가운데 하이픈으로 쓰며, 유효성은 시험에 고정한 DiagramPlay의 `findBlocks`와 대조한다. 다른 속성과 잘못된 이름은 위치가 있는 진단으로 돌려준다.
+`diagramplay` 펜스를 권장하며 기존 `thinkflow`와 `torso` 펜스도 같은 도표 분기로 해석한다. 세 펜스는 `width`와 `name=<이름>`을 받는다. 이름은 영문 소문자·숫자와 가운데 하이픈으로 쓰며, 유효성은 시험에 고정한 DiagramPlay의 공개 CLI `diagramplay md --check --json` 결과와 대조한다. 다른 속성과 잘못된 이름은 위치가 있는 진단으로 돌려준다.
 
 `compileDiagram`은 첫 의미 줄의 독립된 `thinkflow` 또는 `torso` 선언만 `diagramplay`로 바꿔 단일 렌더러에 전달한다. 빈 줄, BOM, 공백, `#` 주석을 건너뛰되 구 선언 뒤에는 공백이나 주석만 허용한다. 본문·라벨·잘못된 시작 선언은 바꾸지 않는다. token.content, metadata, 중복 제거 기준과 결과 Map key는 원문을 유지한다. 공개 `toHtml`의 `source` 옵션으로 입력 원문을 전달하므로 문법 복사와 canonical HTML 다운로드도 같은 원문을 담는다. 컴파일 모형과 시간표는 수정하지 않는다.
 
@@ -118,19 +134,43 @@ console.log(output.diagnostics);
 
 TextMate 문법은 `renderDocument`가 문서와 `ui:` 구성 요소 안의 펜스 언어를 모아 그 문법만 불러온다. 한 번 불러온 문법은 프로세스 안에서 다시 쓴다.
 
-코드 블록 하나의 TextMate 분석 시간은 `HIGHLIGHT_TIME_LIMIT_MS`(500ms)로 제한한다. shiki가 한 줄에 쓰는 기본 제한과 같은 값을 블록 전체에 적용한다. 제한을 넘거나 한 줄이라도 분석이 중간에 멈추면 그 블록은 강조 없이 escape한 원문으로 출력하고 진단은 남기지 않는다. 같은 문서의 다른 블록은 계속 강조한다. [renderer.test.js](../../test/renderer.test.js)의 `a_code_block_over_the_highlight_time_limit_is_output_as_escaped_source`가 4만 줄 블록으로 검사한다.
+코드 블록 하나의 TextMate 분석 시간은 `HIGHLIGHT_TIME_LIMIT_MS`(500ms)로 제한한다. shiki가 한 줄에 쓰는 기본 제한과 같은 값을 블록 전체에 적용한다. 제한을 넘거나 한 줄이라도 분석이 중간에 멈추면 그 블록은 강조 없이 escape한 원문으로 출력하고 진단은 남기지 않는다. 같은 문서의 다른 블록은 계속 강조한다. [output.test.js](../../test/output.test.js)의 `a_code_block_over_the_highlight_time_limit_is_output_as_escaped_source`가 4만 줄 블록으로 검사한다.
 
 ### 구성 요소 교체
 
 테마는 스타일뿐 아니라 구성 요소 출력 함수를 교체한다. 교체 함수는 `(props, kit)`을 받아 HTML 문자열 또는 `kit.ui.isTrusted`가 인정하는 값을 돌려준다. 엔진은 반환값을 문자열로 바꿔 출력한다. props는 JSON으로 표현할 수 있는 값만 갖는다. 호출마다 props를 깊게 복사해 넘긴다. 함수가 props를 바꿔도 해석된 문서와 다음 출력은 변하지 않는다.
 
-| 이름 | 형태 | props |
-|---|---|---|
-| tabs, tab, callout, steps, cards, details, table | open·close(cards는 gap, details는 summaryOpen·summaryClose 추가) | 이름별 속성 |
-| card, gallery, figure, video, code | 단일 함수 | 이름별 속성 |
-| kbd, menu, icon, tip | 단일 함수 | label, text, id |
+props의 값은 두 종류다. 원문 글은 escape하지 않은 문자열이라 교체 함수가 `kit.escape`(속성·본문)와 `kit.safeUrl`(주소)로 처리해야 한다. HTML은 엔진이 이미 만든 안전한 조각이라 그대로 출력한다. 표에 없는 props(`id`, `index`, `variant`, `width` 같은 식별자·선택 값)도 원문 글처럼 다룬다.
 
-같은 이름을 `:::` 블록과 `ui:` 코드 펜스가 함께 쓴다. 지원하지 않는 이름과 함수 아닌 값은 `ThemeError`로 거부하며 기본 출력으로 대신하지 않는다. 호출이 실패하거나 문자열·trusted 값 이외의 값을 돌려주면 그 자리에 오류 블록을 내고 `stage`가 `render`인 진단을 남긴다.
+| 이름 | 형태 | 원문 글 props | HTML props |
+|---|---|---|---|
+| tabs | open·close | label, labels | 없음 |
+| tab | open·close | 없음 | 없음 |
+| callout | open·close | title | 없음 |
+| steps, table | open·close | 없음 | 없음 |
+| cards | open·close·gap | 없음 | 없음 |
+| details | open·close·summaryOpen·summaryClose | 없음 | 없음 |
+| card | 단일 함수 | title, description, href, icon | 없음 |
+| gallery | 단일 함수 | title, slides[].alt·caption·label·src | 없음 |
+| figure | 단일 함수 | alt, caption, href, src | 없음 |
+| video | 단일 함수 | title, caption, src, poster | 없음 |
+| code | 단일 함수 | language, filename | code |
+| kbd, menu, icon | 단일 함수 | label | 없음 |
+| tip | 단일 함수 | label, text | 없음 |
+
+같은 이름을 `:::` 블록과 `ui:` 코드 펜스가 함께 쓴다. `ui:` 구성 요소 가운데 위 이름을 부르는 것만 교체 테마를 따른다. 나머지는 디자인 정본 구성 요소로 바로 그린다.
+
+| ui: 구성 요소 | 교체 테마 이름 |
+|---|---|
+| callout | callout |
+| details | details |
+| tabs, platform | tabs, tab |
+| cards | card, cards(`split`이 없을 때) |
+| figure, figure-grid | figure |
+| video | video |
+| gallery | gallery |
+| group, feature, syntax-examples, feature-list, device, demos, feature-pair, fineprint, definitions, speech, keys, tooltip | 없음(교체 불가) |
+ 지원하지 않는 이름과 함수 아닌 값은 `ThemeError`로 거부하며 기본 출력으로 대신하지 않는다. 호출이 실패하거나 문자열·trusted 값 이외의 값을 돌려주면 그 자리에 오류 블록을 내고 `stage`가 `render`인 진단을 남긴다.
 
 열기 호출이 실패하면 해당 쌍의 닫기는 호출하지 않는다. 이 규칙은 `:::` 블록, `ui:` 구성 요소와 일반 `details`·`table`에 적용한다. 쌍마다 성공 여부를 따로 저장하므로 안쪽 쌍의 실패는 바깥 쌍의 닫기를 막지 않는다. 함수가 던진 값이 Error가 아니어도(문자열, null, 객체) 진단 문구 하나로 바꾸고 다음 토큰의 렌더링을 계속한다.
 
@@ -140,8 +180,9 @@ TextMate 문법은 `renderDocument`가 문서와 `ui:` 구성 요소 안의 펜�
 
 기본 테마는 호스트 앱이 설치한 `@woonyong-choi/design-tokens` 패키지다. 엔진은 디자인 파일을 가져오거나 복사하지 않고 빌드 단계도 없다. 어느 디자인 commit을 쓸지는 호스트가 정한다.
 
-- 구성 요소와 아이콘은 `@woonyong-choi/design-tokens/ui/index.mjs`, `ui/build/icons.mjs`, `ui/svg.mjs`, `ui/manifest.mjs`에서 불러온다.
-- 해석기가 쓰는 폭 값은 정본 구성 요소의 `WIDTHS` 하나다(`ui/components.mjs`). 해석기는 이 값 목록만 읽고 HTML을 만들지 않는다.
+- 구성 요소·아이콘·SVG는 디자인 패키지의 이름 있는 export `@woonyong-choi/design-tokens/components`, `/icons`, `/svg`에서 불러온다. runtime 목록은 이름 있는 export가 없어 `ui/manifest.mjs`를 `./*` 경로로 읽는다.
+- 폭과 카드 모양 값 목록은 정본 구성 요소의 `WIDTHS`, `CARD_VARIANTS` 하나다. 루트 `parseDocument`가 이 값을 해석 문맥 `vocabulary`로 넘기고, 출력 단계의 검사도 같은 정본 구성 요소가 한다. 해석기는 디자인 모듈을 import하지 않는다.
+- 제목을 생략한 `:::note`와 `ui:callout`의 제목은 같은 `참고`다.
 - 다크 모드는 문서 루트의 `data-theme` 또는 시스템 설정으로 정본 CSS가 처리한다. HTML은 모드와 무관하다.
 - 호스트는 `DEFAULT_THEME_FILES`로 tokens.css, styles.css, ui/runtime을 문서 화면에 연결한다. `root`는 설치된 디자인 패키지의 `dist/` 폴더다.
 
@@ -168,11 +209,12 @@ TextMate 문법은 `renderDocument`가 문서와 `ui:` 구성 요소 안의 펜�
 | 의존성 | 선언 | 이유 |
 |---|---|---|
 | `@woonyong-choi/design-tokens` | `peerDependencies` `^0.2.0`, 시험용 `devDependencies` 고정 commit | 기본 테마는 호스트가 준 디자인을 쓴다 |
-| `diagramplay` | `peerDependencies` `^0.2.0`, 시험용 `devDependencies` 고정 commit | 도표는 호스트가 고른 렌더러로 만든다 |
+| `diagramplay` | 선택 `peerDependencies` `^0.2.0`(`peerDependenciesMeta.optional`), 시험용 `devDependencies` 고정 commit | 도표는 호스트가 고른 렌더러로 만든다. 설치하지 않은 호스트도 문서 해석·출력은 쓸 수 있고, `compileDiagram`은 설치할 패키지를 알려 주는 오류를 던진다 |
+| `katex` | `dependencies` `0.19.0`, `overrides` `katex: 0.19.0` | `@vscode/markdown-it-katex` 1.1.2는 `katex ^0.16.4`를 선언한다. 강제가 없으면 0.16.47이 따로 설치되어 수식 출력과 스타일·글꼴(`mathAssets`)의 KaTeX 판이 갈리고, 0.16 판의 보안 권고(GHSA-238p-pmpm-9mq7)가 남는다. katex의 `commander`는 강제하지 않고 katex 선언(`^15`)을 따른다 |
 
 peer 범위는 설치된 패키지의 `version`과 비교한다. Git으로 설치한 패키지도 이 값을 가지므로 호스트가 고른 commit 하나를 엔진과 DiagramPlay가 함께 읽는다. `compileDiagram`은 엔진과 DiagramPlay가 같은 디자인 패키지 위치를 읽는지 확인하고 다르면 도표를 거절한다.
 
-`files`는 `index.js`, `parser/`, `renderer/`, `theme/`만 허용하고 npm이 항상 담는 `package.json`, `README.md`, `LICENSE`가 더해진다. 시험, 설계 문서, 설정 파일, `node_modules`와 개인 경로는 들어가지 않으며 `test/package.test.js`가 `npm pack --dry-run` 목록으로 허용 범위와 담긴 코드의 상대 import 완결성, peer 선언을 검사한다. npm 레지스트리에는 발행하지 않는다.
+`files`는 `index.js`, `parser/`, `renderer/`, `theme/`만 허용하고 npm이 항상 담는 `package.json`, `README.md`, `LICENSE`가 더해진다. 시험, 설계 문서, 설정 파일, `node_modules`와 개인 경로는 들어가지 않으며 `test/package.test.js`가 `npm pack --dry-run` 목록으로 허용 범위와 담긴 코드의 상대 import 완결성, peer 선언, 쓰지 않는 의존성이 없음을 검사한다. npm 레지스트리에는 발행하지 않는다.
 
 ### 검증
 
@@ -181,22 +223,23 @@ peer 범위는 설치된 패키지의 `version`과 비교한다. Git으로 설�
 - 원본이 줄을 붙이지 못하는 `<summary>` 안 인라인 오류에 요약 줄을 붙인다.
 - 아이콘 유효성은 SVG 출력 대신 카탈로그 확인이므로 SVG ID 카운터 소비 횟수가 다르다.
 
-원본 비교와 별개로 오류 사례 시험은 홈페이지 원본 없이 CI에서 실행한다. [renderer.test.js](../../test/renderer.test.js)는 `ERROR_CASES`마다 첫 진단을 `본문 N줄 :이름: 내용` 형식으로 조립해 기대 정규식과 비교하고(`error_case_is_a_located_diagnostic_<이름>`), `UI_ERROR_CASES`와 `UI_SYNTAX_ERRORS`의 진단 문구도 기대 정규식으로 검사한다(`ui_error_case_is_a_diagnostic_<이름>`, `ui_syntax_error_is_one_parse_diagnostic_<이름>`). 원문 HTML과 위험한 주소의 처리는 `raw_html_and_unsafe_urls_never_reach_the_output_as_markup`이 출력에 `<script`, `javascript:` 같은 주소의 `href`·`src`, 이벤트 속성이 없는지 직접 확인한다.
+원본 비교와 별개로 오류 사례 시험은 홈페이지 원본 없이 CI에서 실행한다. [output.test.js](../../test/output.test.js)는 `ERROR_CASES`마다 첫 진단을 `본문 N줄 :이름: 내용` 형식으로 조립해 기대 정규식과 비교하고(`error_case_is_a_located_diagnostic_<이름>`), `UI_ERROR_CASES`와 `UI_SYNTAX_ERRORS`의 진단 문구도 기대 정규식으로 검사한다(`ui_error_case_is_a_diagnostic_<이름>`, `ui_syntax_error_is_one_parse_diagnostic_<이름>`). 원문 HTML과 위험한 주소의 처리는 `raw_html_and_unsafe_urls_never_reach_the_output_as_markup`이 출력에 `<script`, `javascript:` 같은 주소의 `href`·`src`, 이벤트 속성이 없는지 직접 확인한다.
 
 ### 요구사항
 
 | 요구사항 | 검증 계획 |
 |---|---|
-| 해석기는 HTML·테마·DOM을 사용하지 않는다 | [parser.test.js](../../test/parser.test.js)의 `parser_sources_do_not_import_the_renderer_theme_or_output_libraries` |
+| 해석기는 HTML·테마·DOM·디자인 모듈을 사용하지 않는다 | [parser.test.js](../../test/parser.test.js)의 `parser_sources_do_not_import_the_renderer_theme_design_or_output_libraries` |
+| 공개 진입점만 import할 수 있다 | [package.test.js](../../test/package.test.js)의 `only_the_root_and_parser_entry_points_are_importable_by_package_name` |
 | 해석과 출력이 원문·문서 토큰을 바꾸지 않는다 | [parser.test.js](../../test/parser.test.js)의 `the_source_string_is_never_modified_by_parsing`, [renderer.test.js](../../test/renderer.test.js)의 `render_does_not_change_the_document_and_repeats_the_same_output` |
 | 테마 교체 함수의 실패를 문서 위치가 있는 진단으로 돌려준다 | [renderer.test.js](../../test/renderer.test.js)의 `a_failing_replacement_is_a_located_diagnostic_and_shows_an_error_block` |
-| 문법 오류는 원본 없이도 위치가 있는 진단으로 검사한다 | [renderer.test.js](../../test/renderer.test.js)의 `error_case_is_a_located_diagnostic_<이름>`, `ui_error_case_is_a_diagnostic_<이름>` |
-| 원문 HTML과 위험한 주소는 출력 표식이 되지 않는다 | [renderer.test.js](../../test/renderer.test.js)의 `raw_html_and_unsafe_urls_never_reach_the_output_as_markup` |
+| 문법 오류는 원본 없이도 위치가 있는 진단으로 검사한다 | [output.test.js](../../test/output.test.js)의 `error_case_is_a_located_diagnostic_<이름>`, `ui_error_case_is_a_diagnostic_<이름>` |
+| 원문 HTML과 위험한 주소는 출력 표식이 되지 않는다 | [output.test.js](../../test/output.test.js)의 `raw_html_and_unsafe_urls_never_reach_the_output_as_markup` |
 | 실행에 필요한 파일만 배포 목록에 담는다 | [package.test.js](../../test/package.test.js)의 `pack_contains_only_what_the_engine_runs_on` |
 
 ## 단점
 
 - 사용자 구성 요소 교체의 제한된 실행 환경, 미리보기 frame과 자산 CSP는 엔진이 아니라 호출자가 연결한다.
 - front matter는 처리하지 않는다. 호스트나 어댑터가 본문과 분리해 넘긴다.
-- 작업 항목은 HTML 대신 상태를 가진 토큰으로 해석한다. `markdown-it-task-lists`의 HTML 토큰과 모듈 전역 상태는 사용하지 않는다.
+- 작업 항목은 HTML 대신 상태를 가진 토큰으로 해석한다. HTML 토큰과 모듈 전역 상태를 만드는 작업 목록 플러그인은 쓰지 않는다.
 - Git 의존성의 잠금 파일에는 `git+ssh` 주소가 남는다. 설치 환경에서 해당 GitHub 주소를 받을 수 있어야 한다.

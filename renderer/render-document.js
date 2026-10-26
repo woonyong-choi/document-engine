@@ -2,7 +2,7 @@
 import { loadDefaultTheme } from '../theme/default-theme.js';
 import { resolveComponents } from '../theme/resolve-theme.js';
 
-import { loadHighlighter } from './code-highlight.js';
+import { loadHighlighter, resolveCodeAlias } from './code-highlight.js';
 import { tabsWithScenes } from './directive-render.js';
 import { createKit } from './kit.js';
 import { usesMath } from './math-assets.js';
@@ -13,9 +13,11 @@ let renderer;
 /**
  * @typedef {object} RenderContext
  * @property {string} [id] 진단에 붙일 문서 식별자. 생략하면 해석한 문서의 식별자
- * @property {{ components?: object }} [theme] 구성 요소를 교체할 테마. 생략하면 기본 테마
+ * @property {{ name?: string, components?: object }} [theme] 구성 요소를 교체할 테마. 생략하면 기본 테마, 이름이 없으면 결과의 theme은 custom
  * @property {{ url?(name: string): string, size?(name: string): [number, number] | undefined }} [assets] 자산 주소와 크기 조회
  * @property {Map<string, object>} [diagrams] 도표 원문에서 만든 삽입 정보. 없는 원문은 코드로 표시한다
+ * @property {Record<string, { language: string, label?: string }>} [codeAliases] 펜스 언어 별칭과 표시 이름
+ * @property {string} [deviceOverlay] 기기 틀 위에 겹칠 그림의 자산 이름. 없으면 겹치지 않는다
  */
 
 /**
@@ -38,7 +40,9 @@ export async function renderDocument(document, context = {}) {
   const theme = await loadDefaultTheme();
   const components = resolveComponents(theme.components, context.theme);
   const highlighter = await loadHighlighter();
-  await highlighter.prepare(codeInfos(document.tokens));
+  await highlighter.prepare(
+    [...codeInfos(document.tokens)].map((info) => resolveCodeAlias(info, context.codeAliases).info),
+  );
   renderer ??= createRenderer();
   const usedAssets = new Map();
   const kit = createKit(theme, context, usedAssets);
@@ -67,7 +71,7 @@ export async function renderDocument(document, context = {}) {
       line,
       status: diagramStatus(context.diagrams?.get(source)),
     })),
-    theme: context.theme?.name ?? theme.name,
+    theme: context.theme === undefined ? theme.name : (context.theme.name ?? 'custom'),
   };
 }
 

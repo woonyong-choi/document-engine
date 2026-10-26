@@ -1,7 +1,6 @@
 // ui: 코드 펜스의 구성 요소 출력. 해석기가 보존한 YAML 데이터와 안쪽 Markdown 출력으로 구성 요소 하나를 만든다.
 // 안쪽 Markdown은 이미 해석된 토큰을 그리기만 하며 다시 해석하지 않는다.
-
-const CARD_VARIANTS = ['centered', 'grouped', 'inline', 'related'];
+import { CALLOUT_TITLE } from './directive-render.js';
 
 /**
  * @typedef {object} ComponentContext
@@ -38,8 +37,8 @@ function remote(rc, src = '') {
   });
 }
 
-const overlay = ({ kit }) =>
-  kit.trusted(kit.image('bezel-iphone6-overlay.svg', '', 'app-device-overlay'));
+// 기기 틀 위에 겹칠 그림. 자산 이름은 호스트가 출력 문맥의 deviceOverlay로 정하며 없으면 겹치지 않는다.
+const overlay = ({ kit }) => kit.deviceOverlay();
 
 function feature(data, rc) {
   const { ui, trusted, escape, image } = rc.kit;
@@ -101,7 +100,11 @@ function paired(rc, name, props, inner, closeProps = {}) {
 }
 
 function callout(data, rc) {
-  const props = { title: data.title ?? 'Note', tone: data.tone, fineprint: data.fineprint };
+  const props = {
+    title: data.title ?? CALLOUT_TITLE,
+    tone: data.tone,
+    fineprint: data.fineprint,
+  };
   return paired(rc, 'callout', props, () => rc.html('body'));
 }
 
@@ -146,7 +149,7 @@ function tabs(data, rc, platform) {
 }
 
 function cards(data, rc) {
-  if (data.variant && !CARD_VARIANTS.includes(data.variant))
+  if (data.variant && !rc.kit.ui.CARD_VARIANTS.includes(data.variant))
     throw new Error(`Unknown card variant: ${data.variant}`);
   const html = data.items.map((item) =>
     rc.call('card', undefined, {

@@ -11,6 +11,11 @@
   "private": true,
   "type": "module",
   "main": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./parser": "./parser/index.js",
+    "./package.json": "./package.json"
+  },
   "files": [
     "index.js",
     "parser/",
@@ -39,20 +44,21 @@
     "@woonyong-choi/design-tokens": "^0.2.0",
     "diagramplay": "^0.2.0"
   },
+  "peerDependenciesMeta": {
+    "diagramplay": {
+      "optional": true
+    }
+  },
   "devDependencies": {
     "@eslint/js": "10.0.1",
     "@woonyong-choi/design-tokens": "github:woonyong-choi/design-tokens#5fc5fec166898e17eea52434891bf585ed980257",
     "eslint": "10.12.0",
     "eslint-plugin-sonarjs": "4.2.2",
     "globals": "17.13.0",
-    "markdown-it-task-lists": "2.1.1",
     "prettier": "3.9.10",
     "diagramplay": "github:woonyong-choi/diagramplay#4850c23dae6cad989b29b6af691d5233bc9afd66"
   },
   "overrides": {
-    "katex": {
-      ".": "0.19.0",
-      "commander": "14.0.3"
-    }
+    "katex": "0.19.0"
   }
 }

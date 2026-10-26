@@ -4,7 +4,6 @@ import { TAB_ATTRIBUTES, WIDTH_OPTION } from './directive-syntax.js';
 
 const PLACES = ['root', 'tab'];
 const LIST = ['bullet_list', 'ordered_list'];
-const CARD_VARIANTS = ['centered', 'grouped', 'inline', 'related'];
 
 // 옛 `::::tabs`+`:::tab[이름]` 형식은 선택 줄이 위에 오는 분할 모양이다. 새 `@tab` 형식은 meta.options를 미리 갖는다.
 const LEGACY_TABS = Object.freeze({ position: 'top', selector: 'segmented' });
@@ -74,7 +73,7 @@ export const BLOCKS = Object.freeze({
   cards: {
     label: 'none',
     attrs: {
-      variant: { type: 'enum', values: CARD_VARIANTS },
+      variant: { type: 'enum', values: 'cardVariants' },
       columns: { type: 'enum', values: ['1', '2'] },
     },
     within: PLACES,

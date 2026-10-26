@@ -7,7 +7,7 @@ import { documentEngine } from '../index.js';
 
 import { DOCUMENTS, ERROR_CASES, UI_ERROR_CASES, UI_SYNTAX_ERRORS } from './fixtures/documents.js';
 import { loadReference, referenceSource } from './support/reference.js';
-import { ASSET_NAMES, IMAGE_SIZES, assets } from './support/synthetic.js';
+import { ASSET_NAMES, HOMEPAGE_RENDER, IMAGE_SIZES, assets } from './support/synthetic.js';
 
 const skip = referenceSource
   ? false
@@ -24,7 +24,10 @@ async function renderNew(source, extra = {}) {
     pageId: 'p',
     assets,
   });
-  return { document, output: await documentEngine.renderDocument(document, { assets, ...extra }) };
+  return {
+    document,
+    output: await documentEngine.renderDocument(document, { assets, ...HOMEPAGE_RENDER, ...extra }),
+  };
 }
 
 function renderOriginal(source, env = {}) {

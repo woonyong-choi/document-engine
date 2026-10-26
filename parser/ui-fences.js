@@ -24,7 +24,7 @@ const ITEM_BODY = { body: TEXT };
  * ui: 구성 요소 명세. fields는 해석 단계에서 검사하는 필드 형식, bodies는 안쪽 Markdown 필드 목록이다.
  * inline 필드는 문단 없이 한 줄 안에서 해석한다.
  */
-export const UI_KINDS = Object.freeze({
+const UI_KINDS = Object.freeze({
   __proto__: null,
   group: { fields: { title: TEXT, body: TEXT }, bodies: () => [{ path: 'body' }] },
   feature: {
@@ -119,7 +119,7 @@ export function installFences(md) {
 }
 
 /** `a.items.0.body` 같은 경로로 구성 요소 데이터의 값을 읽는다. */
-export function valueAt(data, path) {
+function valueAt(data, path) {
   return path.split('.').reduce((value, key) => value?.[key], data);
 }
 
@@ -146,7 +146,8 @@ function classifyFence(state, token) {
   };
   const optionSource = kind.replace(/^\S+\s*/, '');
   if (/^(?:diagramplay|thinkflow|torso)(?:\s|$)/.test(kind)) {
-    const options = parseOptions(optionSource, DIAGRAM_ATTRIBUTES, fail);
+    const checks = { vocabulary: env.context.vocabulary };
+    const options = parseOptions(optionSource, DIAGRAM_ATTRIBUTES, fail, checks);
     if (options.name !== undefined && !BLOCK_NAME.test(options.name)) {
       fail('name은 영문 소문자·숫자와 가운데 하이픈(-)만 쓸 수 있습니다 (예: name=flow-1)');
     }
@@ -154,7 +155,10 @@ function classifyFence(state, token) {
     return { role: 'diagram', options };
   }
   if (kind.startsWith('ui:')) return classifyComponent(state, token, kind, fail);
-  return { role: 'code', options: parseOptions(optionSource, CODE_ATTRIBUTES, fail) };
+  const options = parseOptions(optionSource, CODE_ATTRIBUTES, fail, {
+    vocabulary: env.context.vocabulary,
+  });
+  return { role: 'code', options };
 }
 
 // 같은 원문은 한 번만 만든다. 도표 생성은 렌더러 밖의 worker가 맡으므로 원문과 줄만 모은다.
@@ -211,7 +215,6 @@ function parseField(state, token, data, { path, inline = false, nullAsEmpty = fa
   const nested = createEnv(state.env.context, state.env, {
     fenceLine: fenceLine(state.env, token),
   });
-  nested.inlineOnly = inline;
   const tokens = inline ? state.md.parseInline(text, nested) : state.md.parse(text, nested);
   return { path, inline, tokens, env: nested };
 }
