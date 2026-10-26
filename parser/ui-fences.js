@@ -1,4 +1,4 @@
-import { parse as parseYaml } from 'yaml';
+import { LineCounter, parseDocument as parseYamlDocument } from 'yaml';
 
 import { DirectiveError, reportSyntaxError } from './diagnostics.js';
 import { WIDTH_OPTION, parseOptions } from './directive-syntax.js';
@@ -14,34 +14,105 @@ const itemBodies = (data, field = 'body') =>
     ? data.items.map((_, index) => ({ path: `items.${index}.${field}` }))
     : [];
 
+// 필드 형식. text는 글(문자열·숫자·참거짓·null), items는 객체 목록, texts는 글 목록이다.
+// 명세에 없는 필드는 검사하지 않는다(구성 요소 출력이 읽지 않는다).
+const TEXT = 'text';
+const items = (fields = {}, required = false) => ({ type: 'items', fields, required });
+const ITEM_BODY = { body: TEXT };
+
 /**
- * ui: 구성 요소의 이름과 안쪽 Markdown 필드. 필드가 없는 구성 요소는 빈 목록이다.
+ * ui: 구성 요소 명세. fields는 해석 단계에서 검사하는 필드 형식, bodies는 안쪽 Markdown 필드 목록이다.
  * inline 필드는 문단 없이 한 줄 안에서 해석한다.
  */
 export const UI_KINDS = Object.freeze({
   __proto__: null,
-  group: () => [{ path: 'body' }],
-  feature: () => [{ path: 'body' }],
-  'syntax-examples': (data) => itemBodies(data),
-  'feature-list': (data) => itemBodies(data),
-  device: () => [],
-  demos: (data) => [...itemBodies(data), ...(data.after ? [{ path: 'after' }] : [])],
-  'feature-pair': (data) => [...itemBodies(data), { path: 'media' }],
-  callout: () => [{ path: 'body' }],
-  details: () => [{ path: 'body' }],
-  figure: () => [],
-  fineprint: () => [{ path: 'body', inline: true, nullAsEmpty: true }],
-  'figure-grid': () => [],
-  video: () => [],
-  gallery: () => [],
-  platform: (data) => itemBodies(data),
-  tabs: (data) => itemBodies(data),
-  cards: () => [],
-  definitions: (data) => itemBodies(data),
-  speech: () => [],
-  keys: () => [],
-  tooltip: () => [{ path: 'description' }],
+  group: { fields: { title: TEXT, body: TEXT }, bodies: () => [{ path: 'body' }] },
+  feature: {
+    fields: {
+      icon: TEXT,
+      title: TEXT,
+      description: TEXT,
+      href: TEXT,
+      link: TEXT,
+      tone: TEXT,
+      body: TEXT,
+      left: TEXT,
+      right: TEXT,
+      leftTitle: TEXT,
+      rightTitle: TEXT,
+    },
+    bodies: () => [{ path: 'body' }],
+  },
+  'syntax-examples': { fields: { items: items(ITEM_BODY, true) }, bodies: itemBodies },
+  'feature-list': { fields: { items: items(ITEM_BODY, true) }, bodies: itemBodies },
+  device: { fields: { src: TEXT, poster: TEXT, title: TEXT }, bodies: () => [] },
+  demos: {
+    fields: { items: items({ ...ITEM_BODY, title: TEXT, src: TEXT }, true), after: TEXT },
+    bodies: (data) => [...itemBodies(data), ...(data.after ? [{ path: 'after' }] : [])],
+  },
+  'feature-pair': {
+    fields: { items: items(ITEM_BODY, true), media: TEXT },
+    bodies: (data) => [...itemBodies(data), { path: 'media' }],
+  },
+  callout: { fields: { title: TEXT, tone: TEXT, body: TEXT }, bodies: () => [{ path: 'body' }] },
+  details: { fields: { title: TEXT, body: TEXT }, bodies: () => [{ path: 'body' }] },
+  figure: { fields: {}, bodies: () => [] },
+  fineprint: {
+    fields: { body: TEXT },
+    bodies: () => [{ path: 'body', inline: true, nullAsEmpty: true }],
+  },
+  'figure-grid': { fields: { items: items() }, bodies: () => [] },
+  video: { fields: { src: TEXT, poster: TEXT, title: TEXT, caption: TEXT }, bodies: () => [] },
+  gallery: { fields: { title: TEXT, slides: items() }, bodies: () => [] },
+  platform: {
+    fields: { title: TEXT, items: items({ ...ITEM_BODY, label: TEXT }) },
+    bodies: itemBodies,
+  },
+  tabs: {
+    fields: { title: TEXT, items: items({ ...ITEM_BODY, label: TEXT }) },
+    bodies: itemBodies,
+  },
+  cards: { fields: { variant: TEXT, items: items({}, true) }, bodies: () => [] },
+  definitions: {
+    fields: { items: items({ ...ITEM_BODY, term: TEXT }, true) },
+    bodies: itemBodies,
+  },
+  speech: { fields: { body: TEXT }, bodies: () => [] },
+  keys: { fields: { label: TEXT, keys: { type: 'texts', required: true } }, bodies: () => [] },
+  tooltip: { fields: { label: TEXT, description: TEXT }, bodies: () => [{ path: 'description' }] },
 });
+
+const isText = (value) => value === null || typeof value !== 'object';
+const isRecord = (value) => value !== null && typeof value === 'object' && !Array.isArray(value);
+
+// 명세대로 데이터를 검사한다. 틀린 필드는 그 필드의 경로와 함께 fail(message, path)로 알린다.
+function checkFields(data, fields, fail, prefix = '') {
+  for (const [key, rule] of Object.entries(fields)) {
+    const path = `${prefix}${key}`;
+    const value = data[key];
+    if (value === undefined) {
+      if (rule.required) fail(`필수 필드가 없습니다: ${path}`);
+    } else if (rule === TEXT) {
+      if (!isText(value)) fail(`${path}: 글이어야 합니다`, path);
+    } else {
+      checkList(value, rule, fail, path);
+    }
+  }
+}
+
+function checkList(value, rule, fail, path) {
+  const texts = rule.type === 'texts';
+  if (!Array.isArray(value)) fail(`${path}: ${texts ? '글 목록' : '항목 목록'}이어야 합니다`, path);
+  value.forEach((item, index) => {
+    const at = `${path}.${index}`;
+    if (texts) {
+      if (!isText(item)) fail(`${at}: 글이어야 합니다`, at);
+      return;
+    }
+    if (!isRecord(item)) fail(`${at}: 항목(이름: 값 묶음)이어야 합니다`, at);
+    checkFields(item, rule.fields, fail, `${at}.`);
+  });
+}
 
 export function installFences(md) {
   md.core.ruler.push('fence-semantics', fenceSemantics);
@@ -95,26 +166,41 @@ function recordDiagram(env, token, options) {
 function classifyComponent(state, token, kind, fail) {
   const name = kind.slice(3);
   const where = `ui:${name}`;
-  const data = readComponentData(token, kind, (message, line) => fail(message, where, line));
+  const start = (token.map?.[0] ?? 0) + 1;
+  const { data, lineOf } = readComponentData(token, kind, (message, line) =>
+    fail(message, where, line === undefined ? undefined : start + line),
+  );
   if (!Object.hasOwn(UI_KINDS, name)) fail(`Unknown document component: ${name}`, where);
-  const units = UI_KINDS[name](data).map((field) => parseField(state, token, data, field));
+  const spec = UI_KINDS[name];
+  checkFields(data, spec.fields, (message, path) => {
+    const line = path === undefined ? undefined : lineOf(path);
+    fail(message, where, line === undefined ? start : start + line);
+  });
+  const units = spec.bodies(data).map((field) => parseField(state, token, data, field));
   return { role: 'ui', kind: name, data, units };
 }
 
+// YAML을 읽어 데이터와 필드 경로의 줄(펜스 안 1부터)을 돌려준다. 실패는 fail(message, 펜스 안 줄)로 알린다.
 function readComponentData(token, kind, fail) {
+  const lineCounter = new LineCounter();
+  const document = parseYamlDocument(token.content, { lineCounter, maxAliasCount: 0 });
+  const [error] = document.errors;
+  if (error) {
+    const first = error.message.split('\n')[0];
+    return fail(`${kind} 데이터를 읽을 수 없습니다: ${first}`, error.linePos?.[0]?.line);
+  }
   let data;
   try {
-    data = parseYaml(token.content, { maxAliasCount: 0 });
-  } catch (error) {
-    const first = error.message.split('\n')[0];
-    const line = error.linePos?.[0]?.line;
-    return fail(
-      `${kind} 데이터를 읽을 수 없습니다: ${first}`,
-      line ? (token.map?.[0] ?? 0) + 1 + line : undefined,
-    );
+    data = document.toJS({ maxAliasCount: 0 });
+  } catch (failure) {
+    return fail(`${kind} 데이터를 읽을 수 없습니다: ${failure.message.split('\n')[0]}`);
   }
   if (!data || typeof data !== 'object') fail(`Invalid ${kind} data`);
-  return data;
+  const lineOf = (path) => {
+    const node = document.getIn(path.split('.'), true);
+    return node?.range ? lineCounter.linePos(node.range[0]).line : undefined;
+  };
+  return { data, lineOf };
 }
 
 // 안쪽 Markdown 필드를 같은 해석기로 해석해 { path, tokens, env } 단위로 보존한다.
