@@ -69,21 +69,8 @@ function isInlineMark(found, text) {
   return found.kind === 'leaf' && found.flat && findMarkEnd(text, 0, '::') > 0;
 }
 
-// 다음 비어 있지 않은 줄의 글자. 없으면 빈 문자열이다.
-function nextContent(state, from, end) {
-  for (let at = from; at < end; at += 1) {
-    const text = lineAt(state, at);
-    if (text.trim()) return text;
-  }
-  return '';
-}
-
-// tabs와 platform은 공백 옵션이나 다음 @tab 줄로 새 문법을 판별한다.
-function isTabsForm(state, at, end, line) {
-  if (line.kind !== 'open' || !['tabs', 'platform'].includes(line.name) || line.colons !== 3)
-    return false;
-  return line.flat || parseTabLine(nextContent(state, at + 1, end)) !== null;
-}
+// tabs와 platform 여는 줄은 언제나 `@tab` 줄과 `:::end`를 쓰는 탭 묶음이다.
+const isTabsForm = (line) => line.kind === 'open' && BLOCKS[line.name]?.tabs === true;
 
 const closesFence = (marker, fence, text) =>
   marker &&
@@ -101,9 +88,7 @@ function findClose(state, start, end, opener, fail) {
   }
   const top = scan.stack.at(-1);
   return fail(
-    top.closer === 'end'
-      ? '닫는 :::end 줄이 없습니다'
-      : `닫는 ${':'.repeat(top.colons)} 줄이 없습니다`,
+    top.closer === 'end' ? '닫는 :::end 줄이 없습니다' : '닫는 ::: 줄이 없습니다',
     top.line,
     top.name,
   );
@@ -137,7 +122,7 @@ function scanLine(state, at, end, scan, opener, fail) {
     );
   }
   if (line.kind === 'open') {
-    const closer = isTabsForm(state, at, end, line) ? 'end' : 'bare';
+    const closer = isTabsForm(line) ? 'end' : 'bare';
     scan.stack.push({ ...line, closer, line: at + 1 });
     return undefined;
   }
@@ -149,13 +134,6 @@ function closeLine(line, at, scan, fail) {
     const top = scan.stack.at(-1);
     if (top.closer === 'end')
       fail(`${top.line}줄의 :tabs 묶음은 :::end 로 닫아야 합니다`, at + 1, top.name);
-    if (line.colons !== top.colons) {
-      fail(
-        `닫는 줄의 콜론 수(${line.colons})가 ${top.line}줄의 :${top.name} 여는 줄(${top.colons})과 다릅니다`,
-        at + 1,
-        top.name,
-      );
-    }
   } else if (line.kind !== 'end') {
     return undefined;
   }
@@ -213,8 +191,7 @@ function recover(state, startLine, scope, error) {
 function parseDirective(state, startLine, endLine, found, scope) {
   const fail = failer(state.env, startLine + 1, found.name);
   if (found.kind === 'end') fail('여는 블록 없이 :::end 가 있습니다');
-  if (isTabsForm(state, startLine, endLine, found))
-    return tabsBlock(state, startLine, endLine, found, fail, scope);
+  if (isTabsForm(found)) return tabsBlock(state, startLine, endLine, found, fail, scope);
   if (found.kind === 'close') fail('여는 줄 없이 닫는 줄이 있습니다');
   if (found.kind === 'invalid')
     fail('블록 줄 형식이 잘못되었습니다. :::이름 옵션 또는 닫는 :::end를 쓰세요');

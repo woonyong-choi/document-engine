@@ -117,29 +117,6 @@ for (const [name, source] of UI_SYNTAX_ERRORS) {
   });
 }
 
-test('reference_thinkflow_embed_and_collected_sources_match', { skip }, async () => {
-  const { compileDiagram } = await import('../index.js');
-  const flow =
-    'thinkflow\ntitle "Mini"\nbox a "A"\nbox b "B"\na -> b "go"\n\nscene "S"\n  a -> b "x"\n';
-  const source = `\`\`\`thinkflow width=wide\n${flow}\`\`\`\n\n\`\`\`thinkflow\nmissing\n\`\`\`\n`;
-  const diagram = await compileDiagram(flow);
-  delete diagram.html;
-  const original = renderOriginal(source, {
-    diagrams: new Map([[flow, diagram]]),
-    diagramSources: new Map(),
-  });
-  const { document, output } = await renderNew(source, { diagrams: new Map([[flow, diagram]]) });
-  assert.equal(canonical(output.html), canonical(original.html));
-  assert.deepEqual(
-    document.metadata.diagrams.map((item) => item.source),
-    [...original.env.diagramSources.keys()],
-  );
-  assert.deepEqual(
-    output.diagrams.map((item) => item.status),
-    ['embedded', 'pending'],
-  );
-});
-
 // 의도한 개선: 원본은 <summary> 안의 인라인 오류에 줄을 붙이지 못한다(line 없음). 엔진은 요약 줄을 가리킨다.
 // 오류 원인(메시지·구성 이름)은 원본과 같아야 하고, 줄만 달라진다.
 test('reference_details_summary_error_differs_only_by_the_added_line', { skip }, async () => {

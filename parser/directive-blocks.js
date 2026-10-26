@@ -5,30 +5,9 @@ import { TAB_ATTRIBUTES, WIDTH_OPTION } from './directive-syntax.js';
 const PLACES = ['root', 'tab'];
 const LIST = ['bullet_list', 'ordered_list'];
 
-// 옛 `::::tabs`+`:::tab[이름]` 형식은 선택 줄이 위에 오는 분할 모양이다. 새 `@tab` 형식은 meta.options를 미리 갖는다.
-const LEGACY_TABS = Object.freeze({ position: 'top', selector: 'segmented' });
-
-function tabSet(platform) {
-  return {
-    label: 'optional',
-    attrs: TAB_ATTRIBUTES,
-    within: ['root'],
-    body: { only: ['directive:tab'], min: 1 },
-    prepare(meta, children, { fail, reserveId }) {
-      reserveId(meta);
-      const seen = new Set();
-      children.forEach((child, index) => {
-        const key = child.meta.label.toLowerCase();
-        if (seen.has(key)) fail(`탭 이름이 겹칩니다: ${child.meta.label}`, child.map?.[0] + 1);
-        seen.add(key);
-        child.meta.index = index;
-      });
-      meta.panels = children.map((child) => child.meta);
-      meta.tabs = children.map((child) => child.meta.label);
-      meta.options = platform ? { ...meta.attrs } : { ...LEGACY_TABS, ...meta.attrs };
-    },
-  };
-}
+// 탭 묶음은 `:::tabs 옵션` 다음 `@tab 라벨` 줄로 나누고 `:::end`로 닫는다(directives.js의 tabsBlock).
+// 여기 명세는 놓을 수 있는 자리와 옵션만 정한다. 탭 하나(tab)는 묶음 안에서만 생기며 사용자가 쓰는 블록이 아니다.
+const tabSet = Object.freeze({ tabs: true, attrs: TAB_ATTRIBUTES, within: ['root'] });
 
 const callout = {
   label: 'optional',
@@ -39,14 +18,8 @@ const callout = {
 
 export const BLOCKS = Object.freeze({
   __proto__: null,
-  tabs: tabSet(false),
-  platform: tabSet(true),
-  tab: {
-    label: 'required',
-    attrs: {},
-    within: ['tabs', 'platform'],
-    body: { min: 1 },
-  },
+  tabs: tabSet,
+  platform: tabSet,
   note: callout,
   warning: callout,
   fineprint: {
@@ -152,7 +125,7 @@ export const BLOCKS = Object.freeze({
   },
 });
 
-// 한 줄 안에서 쓰는 `:이름[글]{속성}`. kbd와 menu는 기존 표기를 그대로 둔다.
+// 한 줄 안에서 쓰는 `:이름[글]{속성}`.
 export const INLINES = Object.freeze({
   __proto__: null,
   kbd: { attrs: {} },
