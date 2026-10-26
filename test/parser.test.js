@@ -139,9 +139,9 @@ test('ui_fences_keep_yaml_data_and_pre_parsed_nested_markdown_without_reparsing_
   assert.equal(fence.meta.units[0].env.docId, `${fence.meta.id}-1`);
 });
 
-test('thinkflow_sources_are_collected_at_parse_time_with_lines_and_options', () => {
+test('diagramplay_sources_are_collected_at_parse_time_with_lines_and_options', () => {
   const source =
-    '문단\n\n```thinkflow width=wide\nA\n```\n\n```thinkflow width=wide\nA\n```\n\n```ui:callout\ntitle: x\nbody: "```thinkflow\\nB\\n```"\n```\n';
+    '문단\n\n```diagramplay width=wide\nA\n```\n\n```diagramplay width=wide\nA\n```\n\n```ui:callout\ntitle: x\nbody: "```diagramplay\\nB\\n```"\n```\n';
   const { metadata } = parse(source);
   assert.deepEqual(
     metadata.diagrams.map(({ source: text, line, width }) => [text, line, width]),
@@ -152,35 +152,37 @@ test('thinkflow_sources_are_collected_at_parse_time_with_lines_and_options', () 
   );
 });
 
-test('thinkflow_name_is_accepted_validated_and_kept_only_in_the_fence_options', () => {
+test('diagramplay_name_is_accepted_validated_and_kept_only_in_the_fence_options', () => {
   const fenceOf = (info) => {
     const document = parse(`\`\`\`${info}\nA\n\`\`\`\n`);
     return { fence: allTokens(document.tokens).find((token) => token.type === 'fence'), document };
   };
   assert.deepEqual(
-    { ...fenceOf('thinkflow name=arch-v1').fence.meta.options },
+    { ...fenceOf('diagramplay name=arch-v1').fence.meta.options },
     { name: 'arch-v1' },
   );
   assert.deepEqual(
-    { ...fenceOf('thinkflow width=wide name=flow').fence.meta.options },
+    { ...fenceOf('diagramplay width=wide name=flow').fence.meta.options },
     { width: 'wide', name: 'flow' },
   );
-  assert.equal(fenceOf('thinkflow name=flow').fence.info.trim(), 'thinkflow name=flow');
+  assert.equal(fenceOf('diagramplay name=flow').fence.info.trim(), 'diagramplay name=flow');
   for (const info of [
-    'thinkflow name=a/b',
-    'thinkflow name=../x',
-    'thinkflow name=',
-    'thinkflow name',
+    'diagramplay name=a/b',
+    'diagramplay name=../x',
+    'diagramplay name=',
+    'diagramplay name',
   ]) {
     const { fence, document } = fenceOf(info);
     assert.equal(fence.meta.role, 'error', info);
     assert.ok(document.diagnostics.length > 0, info);
   }
-  const unknown = fenceOf('thinkflow name=ok title=x');
+  const unknown = fenceOf('diagramplay name=ok title=x');
   assert.equal(unknown.fence.meta.role, 'error');
   assert.match(unknown.document.diagnostics[0].message, /허용하지 않는 속성/);
   // 이름이 달라도 같은 원문은 한 번만 모으고, 이름은 도표 원문과 모은 정보에 섞지 않는다.
-  const { metadata } = parse('```thinkflow name=one\nA\n```\n\n```thinkflow name=two\nA\n```\n');
+  const { metadata } = parse(
+    '```diagramplay name=one\nA\n```\n\n```diagramplay name=two\nA\n```\n',
+  );
   assert.deepEqual(metadata.diagrams, [{ source: 'A\n', line: 1, width: undefined }]);
 });
 
@@ -235,11 +237,11 @@ test('syntax_errors_return_located_diagnostics_and_keep_the_rest_of_the_document
 
 test('an_error_inside_a_nested_block_becomes_one_error_token_and_keeps_its_parent_valid', () => {
   const source =
-    '::::tabs\n:::tab[A]\n::figure{src=nope.png alt=a}\n\n정상\n:::\n:::tab[B]\n나\n:::\n::::\n';
+    ':::tabs\n@tab A\n\n::figure{src=nope.png alt=a}\n\n정상\n\n@tab B\n\n나\n\n:::end\n';
   const document = parse(source);
   assert.deepEqual(
     document.diagnostics.map(({ line, message }) => [line, message]),
-    [[3, 'src: 없는 자산입니다: nope.png']],
+    [[4, 'src: 없는 자산입니다: nope.png']],
   );
   const kinds = document.tokens.map((token) => token.type);
   assert.ok(kinds.includes('directive_error'));

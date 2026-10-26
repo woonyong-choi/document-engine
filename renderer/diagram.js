@@ -8,7 +8,7 @@ let checked;
 
 /**
  * 도표 원문 하나를 독립 HTML 문서와 삽입 정보로 만든다.
- * @param {string} source 도표 원문. 기존 thinkflow/torso의 유효 선언도 받는다. 파일 접근은 허용하지 않는다
+ * @param {string} source 도표 원문(첫 의미 줄이 `diagramplay`). 그대로 DiagramPlay에 넘기며 파일 접근은 허용하지 않는다
  * @returns {Promise<{ src: string, title: string, dimensions: { width: number, height: number }, scenes: number, html: Buffer }>}
  *   scenes는 컴파일 결과의 장면 선택 단계 수다(원문이나 HTML을 다시 읽어 세지 않는다)
  *   src는 html을 제공할 사이트 경로다. 같은 원문은 같은 src를 얻는다
@@ -19,7 +19,7 @@ export async function compileDiagram(source) {
   await checked;
   const { buildFigure, toHtml } = await loadDiagramPlay();
   try {
-    const result = await buildFigure(toBuildSource(source), { allowFileAccess: false });
+    const result = await buildFigure(source, { allowFileAccess: false });
     const title = result.figure.title ?? '도표';
     const html = Buffer.from(await toHtml(result, title, { source }));
     const hash = createHash('sha256').update(html).digest('hex');
@@ -55,22 +55,6 @@ export async function compileDiagrams(sources) {
     }
   }
   return { diagrams, assets };
-}
-
-function toBuildSource(source) {
-  let offset = 0;
-  for (const line of source.split('\n')) {
-    const meaningful = line.trim();
-    if (!meaningful || meaningful.startsWith('#')) {
-      offset += line.length + 1;
-      continue;
-    }
-    const header = /^(\s*)(thinkflow|torso)(?=\s*(?:#[^\n]*)?$)/.exec(line);
-    if (!header) return source;
-    const start = offset + header[1].length;
-    return source.slice(0, start) + 'diagramplay' + source.slice(start + header[2].length);
-  }
-  return source;
 }
 
 const MISSING_DIAGRAMPLAY =

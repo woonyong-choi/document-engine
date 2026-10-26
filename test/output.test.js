@@ -4,7 +4,13 @@ import { test } from 'node:test';
 
 import { documentEngine } from '../index.js';
 
-import { DOCUMENTS, ERROR_CASES, UI_ERROR_CASES, UI_SYNTAX_ERRORS } from './fixtures/documents.js';
+import {
+  DOCUMENTS,
+  ENGINE_ERROR_CASES,
+  ERROR_CASES,
+  UI_ERROR_CASES,
+  UI_SYNTAX_ERRORS,
+} from './fixtures/documents.js';
 import { assets } from './support/synthetic.js';
 
 const parse = (source, context = {}) =>
@@ -26,7 +32,7 @@ const CUSTOM_CALLOUT = {
 const located = ({ line, directive, message }) =>
   `${[line ? `본문 ${line}줄` : '', directive ? `:${directive}` : ''].filter(Boolean).join(' ')}: ${message}`;
 
-for (const [name, source, pattern] of ERROR_CASES) {
+for (const [name, source, pattern] of [...ERROR_CASES, ...ENGINE_ERROR_CASES]) {
   test(`error_case_is_a_located_diagnostic_${name}`, async () => {
     const document = await parse(source);
     const [first] = document.diagnostics;
@@ -196,4 +202,44 @@ test('card_variants_come_from_the_design_package_including_summary', async () =>
   );
   assert.deepEqual(diagnostics, []);
   assert.match(html, /app-card-summary/);
+});
+
+// #25 옛 문법: 옛 펜스 이름, 옛 `::::tabs`+`:::tab[이름]`, 옛 붙임·약칭 옵션은 현재 문법의 일반 규칙으로 처리한다.
+test('old_tab_sets_and_old_options_are_ordinary_syntax_errors', async () => {
+  const cases = [
+    ['::::tabs\n:::tab[A]\n가\n:::\n::::\n', 1, /^블록 줄 형식이 잘못되었습니다/],
+    [':::tab[A]\n가\n:::\n', 1, /^알 수 없는 블록입니다/],
+    ['::::platform[기기]\n:::tab[Mac]\n가\n:::\n::::\n', 1, /^블록 줄 형식이 잘못되었습니다/],
+    [
+      ':::tabs selector-segmented\n@tab A\n\n가\n\n:::end\n',
+      1,
+      /^허용하지 않는 속성입니다: selector-segmented/,
+    ],
+    [':::tabs box\n@tab A\n\n가\n\n:::end\n', 1, /^허용하지 않는 속성입니다: box/],
+    [':::tabs top segmented\n@tab A\n\n가\n\n:::end\n', 1, /^허용하지 않는 속성입니다: top/],
+    ['::figure w-narrow src=2-today-mac.png alt=a\n', 1, /^허용하지 않는 속성입니다: w-narrow/],
+    [
+      ':::cards centered\n::card{title=a href=/a/}\n:::\n',
+      1,
+      /^허용하지 않는 속성입니다: centered/,
+    ],
+    ['```js width-narrow\nx\n```\n', 1, /^허용하지 않는 속성입니다: width-narrow/],
+  ];
+  for (const [source, line, pattern] of cases) {
+    const { diagnostics } = await parse(source);
+    assert.ok(diagnostics.length >= 1, source);
+    assert.equal(diagnostics[0].line, line, source);
+    assert.match(diagnostics[0].message, pattern, source);
+  }
+});
+
+test('old_diagram_fence_names_are_plain_code_and_their_options_are_code_options', async () => {
+  for (const name of ['thinkflow', 'torso']) {
+    const plain = await parse(`\`\`\`${name}\nA\n\`\`\`\n`);
+    assert.deepEqual(plain.diagnostics, [], name);
+    assert.deepEqual(plain.metadata.diagrams, [], name);
+    assert.equal(plain.tokens[0].meta.role, 'code', name);
+    const named = await parse(`\`\`\`${name} name=flow\nA\n\`\`\`\n`);
+    assert.match(named.diagnostics[0].message, /^허용하지 않는 속성입니다: name/, name);
+  }
 });

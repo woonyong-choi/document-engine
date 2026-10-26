@@ -241,9 +241,9 @@ test('math_assets_are_local_woff2_only', () => {
   assert.ok(files.has('/katex/LICENSE'));
 });
 
-test('thinkflow_compiles_to_data_and_embeds_without_blocking_the_document', async () => {
+test('diagramplay_compiles_to_data_and_embeds_without_blocking_the_document', async () => {
   const flow =
-    'thinkflow\ntitle "Mini"\nbox a "A"\nbox b "B"\na -> b "go"\n\nscene "S"\n  a -> b "x"\n';
+    'diagramplay\ntitle "Mini"\nbox a "A"\nbox b "B"\na -> b "go"\n\nscene "S"\n  a -> b "x"\n';
   const first = await compileDiagram(flow);
   assert.match(first.src, /^\/diagrams\/[0-9a-f]{64}\.html$/);
   assert.equal(first.title, 'Mini');
@@ -258,7 +258,7 @@ test('thinkflow_compiles_to_data_and_embeds_without_blocking_the_document', asyn
     'the same source maps to the same asset',
   );
 
-  const source = `\`\`\`thinkflow width=wide\n${flow}\`\`\`\n\n\`\`\`thinkflow\nnot a figure\n\`\`\`\n\n\`\`\`thinkflow\nnever compiled\n\`\`\`\n`;
+  const source = `\`\`\`diagramplay width=wide\n${flow}\`\`\`\n\n\`\`\`diagramplay\nnot a figure\n\`\`\`\n\n\`\`\`diagramplay\nnever compiled\n\`\`\`\n`;
   const document = await parse(source);
   const { diagrams, assets: files } = await compileDiagrams(
     document.metadata.diagrams.map((item) => item.source).slice(0, 2),
@@ -280,7 +280,7 @@ test('thinkflow_compiles_to_data_and_embeds_without_blocking_the_document', asyn
   assert.match(output.html, /language-text|Plain text/, 'a pending diagram stays readable source');
   assert.deepEqual(
     output.diagnostics.map((item) => [item.stage, item.component, item.line]),
-    [['render', 'thinkflow', 12]],
+    [['render', 'diagramplay', 12]],
   );
   // 도표 틀(diagram.js)과, 코드로 남은 도표 원문의 복사 도구(document.js).
   assert.deepEqual(output.runtime.toSorted(), ['diagram.js', 'document.js']);
@@ -428,10 +428,10 @@ test('an_inner_failure_does_not_erase_the_outer_pair_state_in_any_nesting', asyn
   const source = [
     '```ui:tabs\nitems:\n  - label: A\n    body: "```ui:callout\\ntitle: x\\nbody: 안\\n```"\n```',
     '<details>\n<summary>요약</summary>\n\n| a |\n|---|\n| b |\n\n</details>',
-    '::::tabs\n:::tab[A]\n:::note\n안\n:::\n:::\n::::',
+    ':::tabs\n@tab A\n\n:::note\n안\n:::\n\n:::end',
   ].join('\n\n');
   const { html, diagnostics } = await render(await parse(source), { theme });
-  // 탭 묶음은 ui:tabs와 ::::tabs 두 개다.
+  // 탭 묶음은 ui:tabs와 :::tabs 두 개다.
   assert.equal((html.match(/<outer-tabs>/g) ?? []).length, 2);
   assert.equal((html.match(/<\/outer-tabs>/g) ?? []).length, 2);
   assert.equal((html.match(/<outer-details>/g) ?? []).length, 1);
@@ -554,11 +554,11 @@ test('image_attributes_escape_asset_urls_and_reject_unsafe_urls_and_sizes', asyn
 });
 
 const tabsOf = (diagram, options = '') =>
-  `:::tabs${options}\n@tab 도표\n\n\`\`\`thinkflow\n${diagram}\`\`\`\n\n@tab 글\n\n본문\n:::end\n`;
+  `:::tabs${options}\n@tab 도표\n\n\`\`\`diagramplay\n${diagram}\`\`\`\n\n@tab 글\n\n본문\n:::end\n`;
 
 test('tabs_holding_a_multi_scene_diagram_fill_only_omitted_position_and_selector', async () => {
-  const many = 'thinkflow\nmany\n';
-  const one = 'thinkflow\none\n';
+  const many = 'diagramplay\nmany\n';
+  const one = 'diagramplay\none\n';
   const embed = (scenes) => ({
     src: '/diagrams/x.html',
     title: 't',
@@ -575,22 +575,28 @@ test('tabs_holding_a_multi_scene_diagram_fill_only_omitted_position_and_selector
   ]);
   const html = async (diagram, options = '', diagrams = known) =>
     (await render(await parse(tabsOf(diagram, options)), { diagrams })).html;
-  assert.equal(await html(many), await html(many, ' top segmented'));
+  assert.equal(await html(many), await html(many, ' position=top selector=segmented'));
   assert.notEqual(await html(many), await html(one));
   assert.equal(await html(one), await html(one, '', unscened));
   assert.notEqual(await html(many, '', unscened), await html(many));
-  assert.equal(await html(many, ' numbers'), await html(many, ' top numbers'));
-  assert.equal(await html(many, ' box'), await html(many, ' box top segmented'));
+  assert.equal(
+    await html(many, ' selector=numbers'),
+    await html(many, ' position=top selector=numbers'),
+  );
+  assert.equal(
+    await html(many, ' frame=panel'),
+    await html(many, ' frame=panel position=top selector=segmented'),
+  );
   assert.equal(
     await html(many, ' position=bottom'),
-    await html(many, ' position=bottom segmented'),
+    await html(many, ' position=bottom selector=segmented'),
   );
-  assert.notEqual(await html(many, ' box'), await html(many));
+  assert.notEqual(await html(many, ' frame=panel'), await html(many));
 });
 
 test('platform_tabs_and_later_tab_sets_ignore_the_scene_decision', async () => {
-  const many = 'thinkflow\nmany\n';
-  const plainDiagram = 'thinkflow\none\n';
+  const many = 'diagramplay\nmany\n';
+  const plainDiagram = 'diagramplay\none\n';
   const embed = (scenes) => ({
     src: '/diagrams/x.html',
     title: 't',
@@ -605,10 +611,12 @@ test('platform_tabs_and_later_tab_sets_ignore_the_scene_decision', async () => {
     [many, embed(undefined)],
     [plainDiagram, embed(undefined)],
   ]);
-  const fence = `\`\`\`thinkflow\n${many}\`\`\`\n`;
+  const fence = `\`\`\`diagramplay\n${many}\`\`\`\n`;
   const platformNew = `:::platform\n@tab Mac\n\n${fence}\n@tab Win\n\n본문\n:::end\n`;
-  const platformLegacy = `::::platform\n:::tab[Mac]\n${fence}:::\n:::tab[Win]\n본문\n:::\n::::\n`;
-  for (const input of [platformNew, platformLegacy]) {
+  for (const input of [
+    platformNew,
+    `:::platform position=top\n@tab Mac\n\n${fence}\n@tab Win\n\n본문\n:::end\n`,
+  ]) {
     const document = await parse(input);
     const withScenes = await render(document, { diagrams });
     assert.match(withScenes.html, /^<section class="app-tabs is-platform"/);
@@ -622,17 +630,17 @@ test('platform_tabs_and_later_tab_sets_ignore_the_scene_decision', async () => {
   assert.equal(normal(`<section${sections[1]}`), alone);
 });
 
-test('thinkflow_name_never_reaches_the_rendered_html_or_the_diagram_path', async () => {
-  const flow = 'thinkflow\nsame\n';
+test('diagramplay_name_never_reaches_the_rendered_html_or_the_diagram_path', async () => {
+  const flow = 'diagramplay\nsame\n';
   const embed = { src: '/diagrams/abc.html', title: 't', dimensions: { width: 10, height: 10 } };
   const diagrams = new Map([[flow, embed]]);
   const html = async (info) =>
     (await render(await parse(`\`\`\`${info}\n${flow}\`\`\`\n`), { diagrams })).html;
-  const plain = await html('thinkflow');
+  const plain = await html('diagramplay');
   assert.match(plain, /<iframe data-diagram src="\/diagrams\/abc\.html"/);
-  assert.equal(await html('thinkflow name=secret-name'), plain);
-  assert.doesNotMatch(await html('thinkflow width=wide name=secret-name'), /secret-name/);
-  assert.match(await html('thinkflow width=wide name=secret-name'), /app-width-wide/);
+  assert.equal(await html('diagramplay name=secret-name'), plain);
+  assert.doesNotMatch(await html('diagramplay width=wide name=secret-name'), /secret-name/);
+  assert.match(await html('diagramplay width=wide name=secret-name'), /app-width-wide/);
 });
 
 test('footnote_ids_carry_the_page_id_so_documents_in_one_feed_do_not_collide', async () => {

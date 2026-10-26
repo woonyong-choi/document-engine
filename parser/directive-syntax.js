@@ -4,11 +4,11 @@
 export const MAX_DEPTH = 3;
 
 const NAME = '[a-z][a-z0-9-]{0,23}';
-const OPEN = new RegExp(`^(:{3,})(${NAME})(?:\\[([^\\]\\n]*)\\])?(?:\\{(.*)\\})?\\s*$`);
+const OPEN = new RegExp(`^(:{3})(${NAME})(?:\\[([^\\]\\n]*)\\])?(?:\\{(.*)\\})?\\s*$`);
 const LEAF = new RegExp(`^::(${NAME})(?:\\[([^\\]\\n]*)\\])?\\{(.*)\\}\\s*$`);
-const CLOSE = /^(:{3,})\s*$/;
+const CLOSE = /^:::\s*$/;
 const END = /^:::end\s*$/;
-const FLAT = new RegExp(`^(:{2,})(${NAME})(?:\\[([^\\]\\n]*)\\])?[ \\t]+(?![\\[{])(\\S.*?)\\s*$`);
+const FLAT = new RegExp(`^(:{2,3})(${NAME})(?:\\[([^\\]\\n]*)\\])?[ \\t]+(?![\\[{])(\\S.*?)\\s*$`);
 const TAB_LINE = /^@tab(?:[ \t]+(.*?))?\s*$/;
 const KEY = /^[a-z][a-z0-9-]{0,23}/;
 const BARE = /^[^\s"'{}=\\]+/;
@@ -16,7 +16,8 @@ const BARE = /^[^\s"'{}=\\]+/;
 const CONTROL = /[\u0000-\u001f\u007f]/u;
 const LIMITS = { attributes: 12, value: 300, label: 80 };
 
-// 한 줄을 여는 줄, 닫는 줄, 리프 줄로 나눈다. 블록 줄처럼 보이지만 형식이 틀리면 'invalid'다.
+// 한 줄을 여는 줄(`:::이름`), 닫는 줄(`:::`, `:::end`), 리프 줄(`::이름`)로 나눈다. 콜론은 셋(블록)과 둘(리프)만 쓴다.
+// 블록 줄처럼 보이지만 형식이 틀리면(`::::tabs` 같은 네 콜론 포함) 'invalid'다.
 export function classifyLine(text) {
   if (!text.startsWith('::')) return { kind: 'text' };
   if (END.test(text)) return { kind: 'end' };
@@ -24,22 +25,18 @@ export function classifyLine(text) {
   if (match) {
     return {
       kind: 'open',
-      colons: match[1].length,
       name: match[2],
       label: match[3],
       source: match[4],
     };
   }
-  match = CLOSE.exec(text);
-  if (match) return { kind: 'close', colons: match[1].length };
+  if (CLOSE.test(text)) return { kind: 'close' };
   match = LEAF.exec(text);
   if (match) return { kind: 'leaf', name: match[1], label: match[2], source: match[3] };
   match = FLAT.exec(text);
   if (match) {
-    const colons = match[1].length;
     return {
-      kind: colons === 2 ? 'leaf' : 'open',
-      colons,
+      kind: match[1].length === 2 ? 'leaf' : 'open',
       name: match[2],
       label: match[3],
       source: match[4],
@@ -205,47 +202,9 @@ export const TAB_ATTRIBUTES = Object.freeze({
   width: WIDTH_OPTION,
 });
 
-// 표시 옵션은 구성 요소별 속성 명세를 거쳐 같은 의미와 값으로 정규화한다.
-const UTILITIES = Object.freeze({
-  'w-narrow': ['width', 'narrow'],
-  'w-wide': ['width', 'wide'],
-  box: ['frame', 'panel'],
-  top: ['position', 'top'],
-  segmented: ['selector', 'segmented'],
-  numbers: ['selector', 'numbers'],
-  centered: ['variant', 'centered'],
-  grouped: ['variant', 'grouped'],
-  inline: ['variant', 'inline'],
-  related: ['variant', 'related'],
-  'cols-1': ['columns', '1'],
-  'cols-2': ['columns', '2'],
-  'frame-iphone': ['frame', 'iphone'],
-});
-
-function optionEntry(key, value, spec, checks) {
-  if (value !== true) return [key, value];
-  if (Object.hasOwn(UTILITIES, key)) return UTILITIES[key];
-  const legacy = /^(frame|position|selector|width)-([a-z]+)$/.exec(key);
-  if (legacy && spec[legacy[1]] && enumValues(spec[legacy[1]], checks)?.includes(legacy[2])) {
-    return legacy.slice(1);
-  }
-  return [key, value];
-}
-
+// `key=값`과 값 없는 참거짓 이름(`rounded`)만 받는다. 명세에 없는 이름은 허용하지 않는 속성이다.
 export function parseOptions(source, spec, fail, checks = {}) {
-  const attrs = Object.create(null);
-  const given = Object.create(null);
-  for (const [token, value] of Object.entries(parseAttributes(source, fail))) {
-    const [key, resolved] = optionEntry(token, value, spec, checks);
-    if (Object.hasOwn(attrs, key)) {
-      fail(
-        `옵션이 ${attrs[key] === resolved ? '겹칩니다' : '충돌합니다'}: ${given[key]}, ${token}`,
-      );
-    }
-    attrs[key] = resolved;
-    given[key] = token;
-  }
-  return validateAttributes(attrs, spec, fail, checks);
+  return validateAttributes(parseAttributes(source, fail), spec, fail, checks);
 }
 
 export const parseTabOptions = (source, fail, checks) =>

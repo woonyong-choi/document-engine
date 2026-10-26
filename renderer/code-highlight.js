@@ -139,7 +139,7 @@ async function createEngine() {
       if (grammar || PLAIN_NAMES.has(language) || !languages.has(language)) {
         return ui.escape(source);
       }
-      // TextMate에 없는 기존 언어도 지원한다. 두 분석기의 출력은 같은 역할과 CSS를 사용한다.
+      // TextMate 문법이 없는 언어는 highlight.js로 분석한다. 두 분석기의 출력은 같은 역할과 CSS를 사용한다.
       return hljs
         .highlight(source, { language, ignoreIllegals: true })
         .value.replace(/class="([^"]+)"/g, (_, classes) => {

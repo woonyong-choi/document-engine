@@ -145,7 +145,7 @@ function classifyFence(state, token) {
     throw new DirectiveError(message, { page: env.pageId, line, name });
   };
   const optionSource = kind.replace(/^\S+\s*/, '');
-  if (/^(?:diagramplay|thinkflow|torso)(?:\s|$)/.test(kind)) {
+  if (/^diagramplay(?:\s|$)/.test(kind)) {
     const checks = { vocabulary: env.context.vocabulary };
     const options = parseOptions(optionSource, DIAGRAM_ATTRIBUTES, fail, checks);
     if (options.name !== undefined && !BLOCK_NAME.test(options.name)) {

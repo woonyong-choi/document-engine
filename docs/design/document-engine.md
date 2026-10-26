@@ -62,10 +62,24 @@ console.log(output.diagnostics);
 | assets.exists(name) | 자산 이름이 있는지. 없으면 존재를 확인하지 않는다 |
 | icons.has(name) | 아이콘이 카탈로그에 있는지 |
 | urls.isSafe(url) | 문서에 쓸 수 있는 주소인지 |
-| vocabulary.widths | 폭 옵션(`width`, `w-narrow` 등)의 값 목록. 루트 `parseDocument`는 디자인 정본 `WIDTHS` |
+| vocabulary.widths | 폭 옵션 `width`의 값 목록. 루트 `parseDocument`는 디자인 정본 `WIDTHS` |
 | vocabulary.cardVariants | `:::cards`의 `variant` 값 목록. 루트 `parseDocument`는 디자인 정본 `CARD_VARIANTS` |
 
 호스트의 파일 시스템 객체는 전달하지 않는다. 원문 문자열은 바꾸지 않는다.
+
+### 문법
+
+엔진은 현재 문법만 받는다. 옛 이름과 옛 형식을 바꿔 읽는 호환 경로는 두지 않으며, 옛 입력은 현재 문법의 일반 진단으로 돌려준다.
+
+| 문법 | 형식 | 옛 입력의 처리 |
+|---|---|---|
+| 블록 | `:::이름[라벨]{속성}` 또는 `:::이름 속성` … `:::` | 네 콜론 이상(`::::tabs`)은 `블록 줄 형식이 잘못되었습니다` |
+| 리프 | `::이름{속성}` 또는 `::이름 속성` | 없음 |
+| 탭 묶음 | `:::tabs`·`:::platform` 옵션, `@tab 라벨` 줄, `:::end` | `:::tab[이름]` 블록은 `알 수 없는 블록입니다` |
+| 옵션 | `key=값`, 값 없는 참거짓 이름(`rounded`, `controls`) | `box`, `top`, `w-narrow`, `selector-segmented`, `centered` 같은 약칭·붙임 옵션은 `허용하지 않는 속성입니다` |
+| 도표 펜스 | ` ```diagramplay width=… name=… ` | ` ```thinkflow `·` ```torso `는 일반 코드 펜스 |
+
+[output.test.js](../../test/output.test.js)의 `old_tab_sets_and_old_options_are_ordinary_syntax_errors`, `old_diagram_fence_names_are_plain_code_and_their_options_are_code_options`와 [diagram.test.js](../../test/diagram.test.js)의 `compileDiagram_does_not_rewrite_old_thinkflow_or_torso_headers`가 검사한다.
 
 ### 해석 결과
 
@@ -114,9 +128,9 @@ console.log(output.diagnostics);
 
 일반 Markdown 이미지의 주소는 원문을 사용하므로 `assets.url`로 바꾸거나 반환값 `assets`에 모으지 않는다. 해당 이미지에도 `assets.size`로 크기를 제공할 수 있다. 일반 Markdown의 링크·이미지 대상은 해석 결과의 `metadata.links`에서 확인한다. `::figure`의 `src` 같은 구성 요소 이미지 필드는 이 목록에 없으므로 해석된 토큰의 속성과 출력의 `assets`도 따로 확인한다. `assets`는 사용한 주소 목록이지 파일 존재 확인 결과가 아니며, 실제 존재 여부는 호스트가 해석 문맥의 `assets.exists` 등으로 검사한다. 이 구분은 [자산 조회 도구](../../renderer/kit.js)와 [이미지 출력 규칙](../../renderer/markdown-rules.js)에 있다.
 
-`diagramplay` 펜스를 권장하며 기존 `thinkflow`와 `torso` 펜스도 같은 도표 분기로 해석한다. 세 펜스는 `width`와 `name=<이름>`을 받는다. 이름은 영문 소문자·숫자와 가운데 하이픈으로 쓰며, 유효성은 시험에 고정한 DiagramPlay의 공개 CLI `diagramplay md --check --json` 결과와 대조한다. 다른 속성과 잘못된 이름은 위치가 있는 진단으로 돌려준다.
+도표는 `diagramplay` 펜스 하나로 쓴다. 다른 이름(`thinkflow`, `torso` 등)의 펜스는 도표가 아니라 일반 코드이며 코드 옵션(`width`, `filename`)만 받는다. `diagramplay` 펜스는 `width`와 `name=<이름>`을 받는다. 이름은 영문 소문자·숫자와 가운데 하이픈으로 쓰며, 유효성은 시험에 고정한 DiagramPlay의 공개 CLI `diagramplay md --check --json` 결과와 대조한다. 다른 속성과 잘못된 이름은 위치가 있는 진단으로 돌려준다.
 
-`compileDiagram`은 첫 의미 줄의 독립된 `thinkflow` 또는 `torso` 선언만 `diagramplay`로 바꿔 단일 렌더러에 전달한다. 빈 줄, BOM, 공백, `#` 주석을 건너뛰되 구 선언 뒤에는 공백이나 주석만 허용한다. 본문·라벨·잘못된 시작 선언은 바꾸지 않는다. token.content, metadata, 중복 제거 기준과 결과 Map key는 원문을 유지한다. 공개 `toHtml`의 `source` 옵션으로 입력 원문을 전달하므로 문법 복사와 canonical HTML 다운로드도 같은 원문을 담는다. 컴파일 모형과 시간표는 수정하지 않는다.
+`compileDiagram`은 원문을 바꾸지 않고 DiagramPlay에 그대로 넘긴다. 첫 의미 줄이 `diagramplay`가 아니면 DiagramPlay가 `missing-preamble` 오류로 거절한다. token.content, metadata, 중복 제거 기준과 결과 Map key는 원문을 유지한다. 공개 `toHtml`의 `source` 옵션으로 입력 원문을 전달하므로 문법 복사와 canonical HTML 다운로드도 같은 원문을 담는다. 컴파일 모형과 시간표는 수정하지 않는다.
 
 지원 아이콘은 호스트의 전체 디자인 카탈로그가 정한다. 지원하지 않는 이름은 원문을 보존한 채 실패 진단으로 남긴다. 렌더 진단의 component는 입력 펜스 이름을 유지하며, 컴파일하지 않은 도표는 읽을 수 있는 코드로 남는다.
 
@@ -190,7 +204,7 @@ props의 값은 두 종류다. 원문 글은 escape하지 않은 문자열이라
 
 자산 조회·파일 저장·화면 연결은 호스트가 맡는다. 홈페이지 어댑터는 `assets`로 조회·주소·크기를 넘기고, 도표 컴파일 결과를 원문별 Map인 `diagrams`로 전달한다. 컴파일한 도표의 HTML 파일을 저장하고 제공하는 일도 호스트의 책임이다.
 
-소개 문단 중복 제거, 프로젝트 첫 H1·기존 ThinkFlow SVG 처리, 태그·공개 여부·날짜·발행 경로, 개인 도메인, `image-sizes.json`과 `content` 폴더 읽기, 출력 파일 배치, 검색·댓글·footer는 공통 엔진에 없다. 프로젝트 도표 SVG·장면 표식 줄의 전처리도 홈페이지 어댑터가 소유한다.
+소개 문단 중복 제거, 프로젝트 첫 H1 처리, 태그·공개 여부·날짜·발행 경로, 개인 도메인, `image-sizes.json`과 `content` 폴더 읽기, 출력 파일 배치, 검색·댓글·footer는 공통 엔진에 없다. 프로젝트 도표 SVG·장면 표식 줄의 전처리도 홈페이지 어댑터가 소유한다.
 
 ### 배포 파일
 
@@ -218,10 +232,11 @@ peer 범위는 설치된 패키지의 `version`과 비교한다. Git으로 설�
 
 ### 검증
 
-고정 홈페이지의 `createMarkdown`을 같은 입력·합성 자산으로 실행해 HTML, 제목 목록, 오류의 메시지·줄·구성 이름을 비교한다. HTML 비교에서는 모든 SVG의 내용을 제거하고 아이콘 ID 번호를 처음 나온 순서로 정규화한다. 제목 비교에서는 줄 정보를 제외한다. 이 비교는 SVG 그림의 내용과 화면의 시각적 동일성을 검증하지 않는다. `HOMEPAGE_SOURCE`는 홈페이지 작업본을 가리키며, 시험은 HEAD가 고정 commit이고 추적 파일이 깨끗한지 확인한 뒤 그 자리의 `src/markdown.mjs`를 읽기 전용으로 불러온다(사본을 만들지 않는다). 원본이 읽는 `config/image-sizes.json`과 `content/assets` 존재 확인만 시험 경계에서 합성 값으로 바꾼다. 환경변수가 없으면 비교 시험은 건너뛴다고 표시한다. 의도한 차이는 두 가지다.
+고정 홈페이지의 `createMarkdown`을 같은 입력·합성 자산으로 실행해 HTML, 제목 목록, 오류의 메시지·줄·구성 이름을 비교한다. HTML 비교에서는 모든 SVG의 내용을 제거하고 아이콘 ID 번호를 처음 나온 순서로 정규화한다. 제목 비교에서는 줄 정보를 제외한다. 이 비교는 SVG 그림의 내용과 화면의 시각적 동일성을 검증하지 않는다. `HOMEPAGE_SOURCE`는 홈페이지 작업본을 가리키며, 시험은 HEAD가 고정 commit이고 추적 파일이 깨끗한지 확인한 뒤 그 자리의 `src/markdown.mjs`를 읽기 전용으로 불러온다(사본을 만들지 않는다). 원본이 읽는 `config/image-sizes.json`과 `content/assets` 존재 확인만 시험 경계에서 합성 값으로 바꾼다. 환경변수가 없으면 비교 시험은 건너뛴다고 표시한다. 의도한 차이는 세 가지다.
 
 - 원본이 줄을 붙이지 못하는 `<summary>` 안 인라인 오류에 요약 줄을 붙인다.
 - 아이콘 유효성은 SVG 출력 대신 카탈로그 확인이므로 SVG ID 카운터 소비 횟수가 다르다.
+- 엔진은 옛 문법을 받지 않는다. 원본이 받던 옛 문법의 입력은 비교 대상에서 빼고 `ENGINE_ERROR_CASES`로 엔진 진단만 확인한다.
 
 원본 비교와 별개로 오류 사례 시험은 홈페이지 원본 없이 CI에서 실행한다. [output.test.js](../../test/output.test.js)는 `ERROR_CASES`마다 첫 진단을 `본문 N줄 :이름: 내용` 형식으로 조립해 기대 정규식과 비교하고(`error_case_is_a_located_diagnostic_<이름>`), `UI_ERROR_CASES`와 `UI_SYNTAX_ERRORS`의 진단 문구도 기대 정규식으로 검사한다(`ui_error_case_is_a_diagnostic_<이름>`, `ui_syntax_error_is_one_parse_diagnostic_<이름>`). 원문 HTML과 위험한 주소의 처리는 `raw_html_and_unsafe_urls_never_reach_the_output_as_markup`이 출력에 `<script`, `javascript:` 같은 주소의 `href`·`src`, 이벤트 속성이 없는지 직접 확인한다.
 
