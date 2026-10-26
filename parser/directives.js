@@ -49,8 +49,9 @@ export function installDirectives(md) {
 
 // 속성 값 검사. 호출자가 확인 함수를 주지 않은 항목은 해석 단계에서 확인하지 않는다(출력 단계가 다시 거부한다).
 function checksOf(env) {
-  const { assets, icons, urls } = env.context;
+  const { assets, icons, urls, vocabulary } = env.context;
   return {
+    vocabulary,
     asset(value) {
       if (!/^[\w.-]+$/.test(value)) return '파일 이름만 쓸 수 있습니다';
       return assets?.exists && !assets.exists(value) ? `없는 자산입니다: ${value}` : '';
@@ -331,7 +332,7 @@ function tabsBlock(state, startLine, endLine, found, fail, scope) {
     fail(`${here}에서는 쓸 수 없습니다. 쓸 수 있는 곳: 문서 바로 아래`);
   }
   // 쓰지 않은 옵션은 테마 구성 요소의 기본값이다.
-  const options = parseTabOptions(found.source ?? '', fail);
+  const options = parseTabOptions(found.source ?? '', fail, checksOf(state.env));
   const { close, marks } = findClose(state, startLine, endLine, { ...found, closer: 'end' }, fail);
   scope.end = close + 1;
   if (!marks.length) fail('@tab 줄이 하나도 없습니다. 예: @tab 변경 전');

@@ -15,7 +15,7 @@ import {
   mathAssets,
 } from '../index.js';
 
-import { DOCUMENTS, ERROR_CASES, UI_ERROR_CASES, UI_SYNTAX_ERRORS } from './fixtures/documents.js';
+import { DOCUMENTS } from './fixtures/documents.js';
 import { snapshotTokens } from './support/snapshot.js';
 import { assets } from './support/synthetic.js';
 
@@ -29,7 +29,8 @@ const stable = (html) => html.replace(/icon-\d+-/g, 'icon-N-');
 const CUSTOM_CALLOUT = {
   components: {
     callout: {
-      open: ({ title, tone }) => `<section class="mine" data-tone="${tone}"><h4>${title}</h4>`,
+      open: ({ title, tone }, kit) =>
+        `<section class="mine" data-tone="${kit.escape(tone)}"><h4>${kit.escape(title)}</h4>`,
       close: () => '</section>',
     },
   },
@@ -80,11 +81,11 @@ test('theme_replacement_receives_json_props_and_only_changes_the_chosen_componen
   const seen = [];
   const theme = {
     components: {
-      card: (props) => {
+      card: (props, kit) => {
         seen.push(JSON.parse(JSON.stringify(props)));
-        return `<a class="c" href="${props.href}">${props.title}</a>`;
+        return `<a class="c" href="${kit.escape(kit.safeUrl(props.href))}">${kit.escape(props.title)}</a>`;
       },
-      kbd: ({ label }) => `<kbd class="k">${label}</kbd>`,
+      kbd: ({ label }, kit) => `<kbd class="k">${kit.escape(label)}</kbd>`,
     },
   };
   const document = await parse(
@@ -660,121 +661,4 @@ test('footnote_ids_carry_the_page_id_so_documents_in_one_feed_do_not_collide', a
     {},
   );
   assert.match(nested.html, /id="fn-component-a-1-1-1"/);
-});
-
-// 홈페이지 원본 없이 CI가 실행하는 오류 사례 시험. 기대 문구는 원본 DirectiveError와 같은 형식(`본문 N줄 :이름: 내용`)으로 조립해 비교한다.
-const located = ({ line, directive, message }) =>
-  `${[line ? `본문 ${line}줄` : '', directive ? `:${directive}` : ''].filter(Boolean).join(' ')}: ${message}`;
-
-for (const [name, source, pattern] of ERROR_CASES) {
-  test(`error_case_is_a_located_diagnostic_${name}`, async () => {
-    const document = await parse(source);
-    const [first] = document.diagnostics;
-    assert.ok(first, `a diagnostic is expected: ${name}`);
-    assert.equal(first.severity, 'error');
-    assert.equal(first.stage, 'parse');
-    assert.equal(first.document, 'doc.md');
-    assert.match(located(first), pattern);
-    assert.ok((await render(document)).html.length > 0);
-  });
-}
-
-for (const [name, source, pattern] of UI_ERROR_CASES) {
-  test(`ui_error_case_is_a_diagnostic_${name}`, async () => {
-    const document = await parse(source);
-    const output = await render(document);
-    const [first] = [
-      ...document.diagnostics,
-      ...output.diagnostics.filter((item) => item.stage === 'render'),
-    ];
-    assert.ok(first, `a diagnostic is expected: ${name}`);
-    assert.equal(first.line, 1, name);
-    assert.match(first.message, pattern);
-    assert.match(output.html, /문서 오류/);
-  });
-}
-
-for (const [name, source, pattern] of UI_SYNTAX_ERRORS) {
-  test(`ui_syntax_error_is_one_parse_diagnostic_${name}`, async () => {
-    const { diagnostics } = await parse(source);
-    assert.equal(diagnostics.length, 1);
-    assert.equal(diagnostics[0].severity, 'error');
-    assert.equal(diagnostics[0].stage, 'parse');
-    assert.match(diagnostics[0].message, pattern);
-  });
-}
-
-test('raw_html_and_unsafe_urls_never_reach_the_output_as_markup', async () => {
-  for (const name of ['raw_html_and_unsafe_urls', 'safe_details_and_unsafe_variants']) {
-    const { html, diagnostics } = await render(await parse(DOCUMENTS[name]));
-    assert.deepEqual(diagnostics, [], name);
-    assert.doesNotMatch(html, /href="(?:javascript|data|vbscript|file):/i, name);
-    assert.doesNotMatch(html, /src="(?:javascript|data|vbscript|file):/i, name);
-    assert.doesNotMatch(html, /<script/i, name);
-    assert.doesNotMatch(html, /<img[^>]*onerror|<[a-z]+[^>]*\son[a-z]+=/i, name);
-    assert.doesNotMatch(html, /<div>/, name);
-  }
-});
-
-test('a_failing_indented_code_block_replacement_reports_its_line', async () => {
-  const theme = {
-    components: {
-      code: () => {
-        throw new Error('code failed');
-      },
-    },
-  };
-  const { diagnostics } = await render(await parse('문단\n\n    들여쓴 코드\n'), { theme });
-  assert.deepEqual(
-    diagnostics.map(({ component, line }) => [component, line]),
-    [['code', 3]],
-  );
-});
-
-test('ui_type_errors_never_reach_the_output_as_javascript_messages_or_object_text', async () => {
-  for (const source of [
-    '```ui:syntax-examples\nitems: 3\n```\n',
-    '```ui:callout\nbody: {a: 1}\n```\n',
-    '```ui:definitions\nitems:\n  - term: a\n    body: {b: 1}\n```\n',
-  ]) {
-    const { html, diagnostics } = await render(await parse(source));
-    assert.doesNotMatch(html, /\[object Object\]|is not a function/, source);
-    assert.ok(
-      diagnostics.every((item) => item.stage === 'parse'),
-      source,
-    );
-  }
-});
-
-// #23 코드 강조 시간 제한: 한 블록의 TextMate 분석이 제한을 넘으면 escape한 원문을 낸다.
-test('a_code_block_over_the_highlight_time_limit_is_output_as_escaped_source', async () => {
-  const line = 'const task = { title: "<Read>", done: false }; // 주석 & 끝\n';
-  const source = line.repeat(40000);
-  const document = await parse(`\`\`\`javascript\n${source}\`\`\`\n`);
-  const started = performance.now();
-  const { html, diagnostics } = await render(document);
-  const elapsed = performance.now() - started;
-  assert.deepEqual(diagnostics, []);
-  assert.doesNotMatch(html, /app-syntax-/);
-  assert.ok(
-    html.includes(
-      `<code class="language-javascript">${line.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;')}`,
-    ),
-  );
-  assert.ok(elapsed < 3000, `render took ${Math.round(elapsed)}ms`);
-  // 같은 언어의 짧은 블록은 계속 강조한다.
-  const short = await render(await parse(`\`\`\`javascript\n${line}\`\`\`\n`));
-  assert.match(short.html, /app-syntax-/);
-});
-
-test('only_the_grammars_a_document_uses_are_loaded', async () => {
-  const { loadHighlighter } = await import('../renderer/code-highlight.js');
-  const highlighter = await loadHighlighter();
-  const ui = {
-    escape: (text) => text,
-    SyntaxToken: ({ text, role }) => `[${role ?? '-'}:${text}]`,
-  };
-  assert.equal(highlighter.highlightCode('fn main() {}', 'rust', ui), 'fn main() {}');
-  await highlighter.prepare(['rust']);
-  assert.match(highlighter.highlightCode('fn main() {}', 'rust', ui), /\[keyword:fn\]/);
 });

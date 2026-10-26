@@ -1,8 +1,11 @@
 // 디렉티브 블록과 인라인 표기의 출력. 해석기가 남긴 이름·라벨·속성에서 구성 요소 호출 하나로 바꾼다.
 import { attemptComponent } from './call.js';
 
+/** 제목을 생략한 :::note와 ui:callout의 제목. */
+export const CALLOUT_TITLE = '참고';
+
 const CALLOUTS = Object.freeze({
-  note: { tone: '', title: '참고' },
+  note: { tone: '', title: CALLOUT_TITLE },
   warning: { tone: 'warning', title: '주의' },
 });
 

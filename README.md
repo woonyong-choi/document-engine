@@ -34,7 +34,9 @@ JS
 
 제목과 문단의 HTML, 빈 진단 목록을 출력합니다. 브라우저 화면의 CSS·runtime 연결과 HTML 저장은 호출자가 처리합니다.
 
-앱에서 설치할 때는 디자인(`@woonyong-choi/design-tokens`), 도표 렌더러(`diagramplay`), 엔진의 commit을 함께 고르세요. 디자인과 도표 렌더러는 각각 `^0.2.0` peer 의존성입니다. npm 레지스트리에는 발행하지 않습니다.
+패키지로 설치하면 `document-engine`과 `document-engine/parser` 두 진입점만 import할 수 있습니다. 테마 없이 동기로 해석만 하려면 `document-engine/parser`의 `parseDocumentSync`를 쓰세요.
+
+앱에서 설치할 때는 디자인(`@woonyong-choi/design-tokens`), 도표 렌더러(`diagramplay`), 엔진의 commit을 함께 고르세요. 디자인과 도표 렌더러는 각각 `^0.2.0` peer 의존성이며, 도표를 쓰지 않으면 도표 렌더러는 설치하지 않아도 됩니다. npm 레지스트리에는 발행하지 않습니다.
 
 ```sh
 npm install --save-dev \

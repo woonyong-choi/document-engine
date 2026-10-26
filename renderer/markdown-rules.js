@@ -8,6 +8,7 @@ import footnote from 'markdown-it-footnote';
 
 import { attemptComponent, callComponent, errorBlock, reportRenderFailure } from './call.js';
 import { renderDirective, renderInlineDirective } from './directive-render.js';
+import { resolveCodeAlias } from './code-highlight.js';
 import { UI_RENDERERS } from './ui-components.js';
 
 // 수식은 KaTeX가 HTML과 MathML로 만든다. 믿을 수 없는 명령(\href, \includegraphics 등)은 실행하지 않고, 틀린 수식은 원문을 그대로 보여 준다.
@@ -259,7 +260,10 @@ function renderFence(token, env, line) {
     }
   }
   if (meta.role === 'ui') return renderComponent(token, env, line);
-  const { id, label } = render.highlighter.codeLanguage(token.info.trim());
+  const alias = resolveCodeAlias(token.info, render.context.codeAliases);
+  const language = render.highlighter.codeLanguage(alias.info);
+  const { id } = language;
+  const label = alias.label ?? language.label;
   const code = `<code class="language-${id}">${render.highlighter.highlightCode(token.content, id, render.kit.ui)}</code>`;
   return callComponent(render, 'code', undefined, { code, language: label, ...meta.options }, line);
 }

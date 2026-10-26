@@ -1,14 +1,15 @@
 // 해석기: HTML·테마 없이 구조·원문 위치·진단을 만든다.
 import assert from 'node:assert/strict';
-import { readFileSync, readdirSync } from 'node:fs';
-import { test } from 'node:test';
-
+import { execFileSync } from 'node:child_process';
+import { mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
-import { pathToFileURL } from 'node:url';
+import { dirname, join } from 'node:path';
+import { test } from 'node:test';
+import { fileURLToPath } from 'node:url';
 
 import katex from 'katex';
 
-import { parseDocument } from '../parser/parse-document.js';
+import { parseDocumentSync as parseDocument } from '../parser/index.js';
 
 import { DOCUMENTS } from './fixtures/documents.js';
 import { assets } from './support/synthetic.js';
@@ -25,27 +26,45 @@ function allTokens(tokens) {
   ]);
 }
 
-test('parser_sources_do_not_import_the_renderer_theme_or_output_libraries', () => {
+// 정적 import(여러 줄 포함), export ... from, 동적 import()의 지정자를 모두 찾는다.
+const SPECIFIERS =
+  /\bimport\s*\(\s*['"]([^'"]+)['"]|\b(?:import|export)\s+(?:[^'";]*?\s+from\s+)?['"]([^'"]+)['"]/g;
+const specifiersOf = (text) => [...text.matchAll(SPECIFIERS)].map((match) => match[1] ?? match[2]);
+
+test('import_scan_finds_multi_line_static_reexport_and_dynamic_imports', () => {
+  const text = [
+    "import {\n  a,\n  b,\n} from '@woonyong-choi/design-tokens/components';",
+    "export { c } from './c.js';",
+    "const d = await import('shiki');",
+    "import 'side-effect';",
+  ].join('\n');
+  assert.deepEqual(specifiersOf(text), [
+    '@woonyong-choi/design-tokens/components',
+    './c.js',
+    'shiki',
+    'side-effect',
+  ]);
+});
+
+test('parser_sources_do_not_import_the_renderer_theme_design_or_output_libraries', () => {
   const forbidden = [
     /renderer\//,
     /theme\//,
     /dist\//,
+    /@woonyong-choi\/design-tokens/,
+    /diagramplay/,
     /highlight\.js/,
     /shiki/,
-    /thinkflow/,
-    /\bui\/index/,
+    /^katex(?:\/|$)/,
   ];
   const imports = [];
   const dir = new URL('../parser/', import.meta.url);
   for (const file of readdirSync(dir)) {
     const text = readFileSync(new URL(file, dir), 'utf8');
-    for (const [, specifier] of text.matchAll(/^import .* from '([^']+)'/gm))
-      imports.push([file, specifier]);
+    for (const specifier of specifiersOf(text)) imports.push([file, specifier]);
   }
   assert.ok(imports.length > 5);
   for (const [file, specifier] of imports) {
-    // 문법 값(폭)은 정본 구성 요소의 값 목록(WIDTHS) 하나만 읽는다.
-    if (specifier === '@woonyong-choi/design-tokens/ui/components.mjs') continue;
     assert.ok(
       !forbidden.some((pattern) => pattern.test(specifier)),
       `${file} imports ${specifier}`,
@@ -267,9 +286,12 @@ test('validation_functions_are_optional_and_only_checked_when_the_caller_supplie
   assert.ok(checked.diagnostics.length >= 1);
 });
 
-test('parseDocument_rejects_non_string_sources_and_unsafe_page_ids', () => {
+test('parseDocument_rejects_non_string_sources_missing_ids_and_unsafe_page_ids', () => {
   assert.throws(() => parseDocument(42, { id: 'a' }), TypeError);
   assert.throws(() => parseDocument('x', { id: 'a', pageId: '../x' }), /pageId/);
+  for (const context of [undefined, {}, { id: '' }, { id: 1 }]) {
+    assert.throws(() => parseDocument('x', context), /context\.id/);
+  }
 });
 
 test('the_same_source_always_parses_to_the_same_structure', () => {
@@ -309,12 +331,8 @@ test('details_summary_inline_errors_report_the_summary_line', () => {
   assert.equal(first.diagnostics[0].line, 2);
 });
 
-// DiagramPlay findBlocks는 패키지 export가 아니므로 고정한 패키지의 내부 파일을 읽는다.
-test('diagramplay_name_validity_matches_the_pinned_diagramplay_fence_reader', async () => {
-  const diagramplayRoot = createRequire(import.meta.url).resolve('diagramplay/package.json');
-  const { findBlocks } = await import(
-    pathToFileURL(diagramplayRoot.replace(/package\.json$/, 'src/md.js')).href
-  );
+// DiagramPlay의 이름 규칙은 공개 진입점인 CLI(`diagramplay md --check --json`)로 확인한다. 내부 파일은 읽지 않는다.
+test('diagramplay_name_validity_matches_the_pinned_diagramplay_markdown_check', () => {
   const names = [
     'flow',
     'a-b',
@@ -330,16 +348,38 @@ test('diagramplay_name_validity_matches_the_pinned_diagramplay_fence_reader', as
     'a/b',
     '../x',
   ];
-  for (const name of names) {
-    const lines = [`\`\`\`diagramplay name=${name}`, 'A', '```'];
-    const found = findBlocks(lines);
-    const upstreamValid = found.errors.length === 0 && found.blocks.length === 1;
-    const fence = allTokens(parse(`${lines.join('\n')}\n`).tokens).find(
-      (token) => token.type === 'fence',
-    );
-    assert.equal(fence.meta.role === 'diagram', upstreamValid, `name=${name}`);
-    if (upstreamValid) assert.equal(found.blocks[0].name, fence.meta.options.name, name);
+  const blocks = names.map(
+    (name) => `\`\`\`diagramplay name=${name}\ndiagramplay\nbox a "A"\n\`\`\``,
+  );
+  const markdown = `${blocks.join('\n\n')}\n`;
+  const pkg = createRequire(import.meta.url).resolve('diagramplay/package.json');
+  const cli = join(dirname(pkg), JSON.parse(readFileSync(pkg, 'utf8')).bin.diagramplay);
+  // 검사 입력은 저장소 규칙대로 .local/ 아래에 두고 끝나면 지운다.
+  const dir = new URL('../.local/', import.meta.url);
+  mkdirSync(dir, { recursive: true });
+  const file = fileURLToPath(new URL('diagramplay-names.md', dir));
+  writeFileSync(file, markdown);
+  let output = '';
+  try {
+    execFileSync(process.execPath, [cli, 'md', file, '--check', '--json'], { encoding: 'utf8' });
+  } catch (error) {
+    output = error.stdout;
+  } finally {
+    rmSync(file, { force: true });
   }
+  const rejectedLines = new Set(
+    output
+      .split('\n')
+      .filter(Boolean)
+      .map((line) => JSON.parse(line).line),
+  );
+  const fences = allTokens(parse(markdown).tokens).filter((token) => token.type === 'fence');
+  assert.equal(fences.length, names.length);
+  names.forEach((name, index) => {
+    const upstreamValid = !rejectedLines.has(fences[index].map[0] + 1);
+    assert.equal(fences[index].meta.role === 'diagram', upstreamValid, `name=${name}`);
+  });
+  assert.ok(rejectedLines.size > 0 && rejectedLines.size < names.length);
 });
 
 test('links_and_images_are_collected_with_lines_including_component_fields_and_footnotes', () => {

@@ -17,8 +17,6 @@ export function createEnv(context, parent, nested) {
     idSlots: [],
     nested: nested !== undefined,
     fenceLine: nested?.fenceLine,
-    // 이 단위가 문서 본문 밖의 inline 전용 필드이면 true. 구성 요소 ID를 부모 번호에 더하지 않는다.
-    inlineOnly: false,
   };
 }
 

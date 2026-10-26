@@ -12,6 +12,7 @@ let parser;
  * @property {{ exists(name: string): boolean }} [assets] 자산 이름이 있는지 확인한다
  * @property {{ has(name: string): boolean }} [icons] 아이콘 이름이 카탈로그에 있는지 확인한다
  * @property {{ isSafe(url: string): boolean }} [urls] 문서에 쓸 수 있는 주소인지 확인한다
+ * @property {{ widths?: string[], cardVariants?: string[] }} [vocabulary] 디자인이 정한 값 목록. 없는 목록은 해석 단계에서 확인하지 않는다
  */
 
 /**
@@ -26,8 +27,11 @@ let parser;
  * }}
  * @throws {TypeError} 원문이나 문맥 형식이 틀렸을 때
  */
-export function parseDocument(source, context = {}) {
+export function parseDocumentSync(source, context = {}) {
   if (typeof source !== 'string') throw new TypeError('source must be a string');
+  if (typeof context.id !== 'string' || context.id === '') {
+    throw new TypeError('context.id must be a non-empty string');
+  }
   if (context.pageId !== undefined && !/^[\w-]+$/.test(context.pageId)) {
     throw new TypeError(`pageId must match [\\w-]+: ${context.pageId}`);
   }

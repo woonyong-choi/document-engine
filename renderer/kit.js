@@ -2,7 +2,7 @@
 
 /**
  * @param {{ ui: object, icons: object, svg: object }} theme 불러온 테마
- * @param {{ assets?: { url?(name: string): string, size?(name: string): [number, number] | undefined } }} context
+ * @param {{ assets?: { url?(name: string): string, size?(name: string): [number, number] | undefined }, deviceOverlay?: string }} context
  * @param {Map<string, string>} usedAssets 문서가 쓴 자산 이름과 주소. 주소를 얻는 데 성공한 자산만 기록한다
  */
 export function createKit(theme, context, usedAssets) {
@@ -55,5 +55,11 @@ export function createKit(theme, context, usedAssets) {
     return String(ui.ContentIcon({ size, graphic, badge }));
   }
 
-  return { ui, escape, safeUrl, trusted, asset, imageSize, image, contentIcon };
+  // 기기 틀 위에 겹칠 그림. 호스트가 자산 이름을 주지 않으면 undefined이며 디자인 구성 요소가 겹침 칸을 비운다.
+  function deviceOverlay() {
+    const name = context.deviceOverlay;
+    return name === undefined ? undefined : trusted(image(name, '', 'app-device-overlay'));
+  }
+
+  return { ui, escape, safeUrl, trusted, asset, imageSize, image, contentIcon, deviceOverlay };
 }

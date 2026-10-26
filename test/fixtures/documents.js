@@ -371,7 +371,7 @@ export const ERROR_CASES = Object.freeze([
   [
     '열거형',
     ':::cards{variant=huge}\n::card{title=a href=/x/}\n:::\n',
-    /variant는 centered, grouped, inline, related 중/,
+    /variant는 centered, grouped, inline, related, summary 중/,
   ],
   [
     '불리언',

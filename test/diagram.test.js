@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { getIconCatalog, readIcon } from '@woonyong-choi/design-tokens/ui/build/icons.mjs';
+import { getIconCatalog, readIcon } from '@woonyong-choi/design-tokens/icons';
 import { buildFigure, toHtml } from 'diagramplay';
 
 import { compileDiagram, compileDiagrams, documentEngine } from '../index.js';
@@ -108,7 +108,9 @@ test('diagram_fences_keep_options_metadata_tokens_and_original_map_keys', async 
 test('diagram_fences_invalid_options_failed_and_pending_states_keep_original_names', async () => {
   for (const name of FENCES) {
     for (const options of ['name=A', 'name=a/b', 'name=', 'width=huge', 'title=x']) {
-      const document = await documentEngine.parseDocument(`\`\`\`${name} ${options}\nA\n\`\`\`\n`);
+      const document = await documentEngine.parseDocument(`\`\`\`${name} ${options}\nA\n\`\`\`\n`, {
+        id: 'doc.md',
+      });
       assert.equal(document.metadata.diagrams.length, 0, `${name} ${options}`);
       assert.equal(document.diagnostics.length, 1, `${name} ${options}`);
     }

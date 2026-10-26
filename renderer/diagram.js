@@ -12,12 +12,12 @@ let checked;
  * @returns {Promise<{ src: string, title: string, dimensions: { width: number, height: number }, scenes: number, html: Buffer }>}
  *   scenes는 컴파일 결과의 장면 선택 단계 수다(원문이나 HTML을 다시 읽어 세지 않는다)
  *   src는 html을 제공할 사이트 경로다. 같은 원문은 같은 src를 얻는다
- * @throws {Error} 원문 오류나 DiagramPlay와 기본 테마가 서로 다른 디자인 패키지를 읽을 때
+ * @throws {Error} 원문 오류, diagramplay가 설치되지 않았을 때, DiagramPlay와 기본 테마가 서로 다른 디자인 패키지를 읽을 때
  */
 export async function compileDiagram(source) {
   checked ??= assertSameDesign();
   await checked;
-  const { buildFigure, toHtml } = await import('diagramplay');
+  const { buildFigure, toHtml } = await loadDiagramPlay();
   try {
     const result = await buildFigure(toBuildSource(source), { allowFileAccess: false });
     const title = result.figure.title ?? '도표';
@@ -73,10 +73,31 @@ function toBuildSource(source) {
   return source;
 }
 
+const MISSING_DIAGRAMPLAY =
+  '도표를 만들려면 호스트 앱에 diagramplay(^0.2.0)를 설치해야 합니다. 도표 없이 문서만 해석·출력할 때는 필요하지 않습니다.';
+
+// diagramplay는 선택 peer 의존성이다. 설치되지 않았으면 무엇을 설치할지 알려 주는 오류를 던진다.
+function resolveDiagramPlay(engine) {
+  try {
+    return engine.resolve('diagramplay');
+  } catch (error) {
+    if (error?.code === 'MODULE_NOT_FOUND') throw new Error(MISSING_DIAGRAMPLAY, { cause: error });
+    throw error;
+  }
+}
+
+function loadDiagramPlay() {
+  return import('diagramplay').catch((error) => {
+    if (error?.code === 'ERR_MODULE_NOT_FOUND')
+      throw new Error(MISSING_DIAGRAMPLAY, { cause: error });
+    throw error;
+  });
+}
+
 async function assertSameDesign() {
   const DESIGN = '@woonyong-choi/design-tokens/package.json';
   const engine = createRequire(import.meta.url);
-  const renderer = createRequire(engine.resolve('diagramplay'));
+  const renderer = createRequire(resolveDiagramPlay(engine));
   if (realpathSync(engine.resolve(DESIGN)) !== realpathSync(renderer.resolve(DESIGN))) {
     throw new Error('DiagramPlay와 문서 엔진이 서로 다른 공통 디자인 패키지를 읽습니다.');
   }

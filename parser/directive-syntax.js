@@ -1,6 +1,5 @@
-// Markdown 구성 블록과 코드 펜스가 공유하는 옵션 문법.
-// 폭 이름은 디자인 정본 구성 요소가 정한 값 목록 하나만 읽는다. 해석기는 HTML을 만들지 않는다.
-import { WIDTHS } from '@woonyong-choi/design-tokens/ui/components.mjs';
+// Markdown 구성 블록과 코드 펜스가 공유하는 옵션 문법. 해석기는 HTML과 디자인 모듈을 알지 못한다.
+// 폭·카드 모양처럼 디자인이 정하는 값 목록은 호출자가 해석 문맥의 vocabulary로 넘긴다.
 
 export const MAX_DEPTH = 3;
 
@@ -60,7 +59,7 @@ export function parseLabel(label, fail) {
 }
 
 // `key=값 key="공백 있는 값" flag` 형식. 값은 따옴표 안에서만 `\"`와 `\\`를 쓴다. 중복 키와 제어 문자는 거부한다.
-export function parseAttributes(source = '', fail) {
+function parseAttributes(source = '', fail) {
   const attrs = Object.create(null);
   let at = skipBlanks(source, 0);
   while (at < source.length) {
@@ -138,7 +137,7 @@ export function attributeEnd(text, start) {
 }
 
 // 속성 명세({ 이름: { type, required, values, min, max } })로 값을 검사해 새 객체를 만든다. 명세에 없는 속성은 거부한다.
-export function validateAttributes(raw, spec, fail, checks) {
+function validateAttributes(raw, spec, fail, checks) {
   const result = Object.create(null);
   for (const key of Object.keys(raw)) {
     if (!Object.hasOwn(spec, key)) {
@@ -168,7 +167,8 @@ function checkBool(key, value, fail) {
 function checkValue(key, rule, value, fail, checks) {
   if (value === true) fail(`값이 필요한 속성입니다: ${key}`);
   if (rule.type === 'enum') {
-    if (!rule.values.includes(value)) fail(`${key}는 ${rule.values.join(', ')} 중 하나여야 합니다`);
+    const values = enumValues(rule, checks);
+    if (values && !values.includes(value)) fail(`${key}는 ${values.join(', ')} 중 하나여야 합니다`);
   } else if (rule.type === 'int') {
     if (!/^\d{1,4}$/.test(value) || Number(value) < rule.min || Number(value) > rule.max) {
       fail(`${key}는 ${rule.min}~${rule.max}의 정수여야 합니다`);
@@ -186,8 +186,18 @@ export function parseTabLine(text) {
   return match ? { label: match[1] || undefined } : null;
 }
 
-// 폭 값은 디자인 정본의 비렌더링 계약(빌드 때 정본 구성 요소에서 내보낸 값)을 그대로 쓴다.
-export const WIDTH_OPTION = Object.freeze({ type: 'enum', values: WIDTHS });
+/**
+ * 열거형 규칙의 값 목록. values가 문자열이면 호출자가 준 vocabulary의 그 이름 목록이다.
+ * 호출자가 목록을 주지 않았으면 undefined이며 해석 단계에서 확인하지 않는다(출력 단계의 디자인 구성 요소가 다시 거부한다).
+ */
+function enumValues(rule, checks = {}) {
+  if (typeof rule.values !== 'string') return rule.values;
+  const values = checks.vocabulary?.[rule.values];
+  return Array.isArray(values) ? values : undefined;
+}
+
+// 폭 값은 호출자가 vocabulary.widths로 준 디자인 정본 목록을 쓴다.
+export const WIDTH_OPTION = Object.freeze({ type: 'enum', values: 'widths' });
 export const TAB_ATTRIBUTES = Object.freeze({
   frame: { type: 'enum', values: ['none', 'panel'] },
   position: { type: 'enum', values: ['bottom', 'top'] },
@@ -212,11 +222,13 @@ const UTILITIES = Object.freeze({
   'frame-iphone': ['frame', 'iphone'],
 });
 
-function optionEntry(key, value, spec) {
+function optionEntry(key, value, spec, checks) {
   if (value !== true) return [key, value];
   if (Object.hasOwn(UTILITIES, key)) return UTILITIES[key];
   const legacy = /^(frame|position|selector|width)-([a-z]+)$/.exec(key);
-  if (legacy && spec[legacy[1]]?.values?.includes(legacy[2])) return legacy.slice(1);
+  if (legacy && spec[legacy[1]] && enumValues(spec[legacy[1]], checks)?.includes(legacy[2])) {
+    return legacy.slice(1);
+  }
   return [key, value];
 }
 
@@ -224,7 +236,7 @@ export function parseOptions(source, spec, fail, checks = {}) {
   const attrs = Object.create(null);
   const given = Object.create(null);
   for (const [token, value] of Object.entries(parseAttributes(source, fail))) {
-    const [key, resolved] = optionEntry(token, value, spec);
+    const [key, resolved] = optionEntry(token, value, spec, checks);
     if (Object.hasOwn(attrs, key)) {
       fail(
         `옵션이 ${attrs[key] === resolved ? '겹칩니다' : '충돌합니다'}: ${given[key]}, ${token}`,
@@ -236,4 +248,5 @@ export function parseOptions(source, spec, fail, checks = {}) {
   return validateAttributes(attrs, spec, fail, checks);
 }
 
-export const parseTabOptions = (source, fail) => parseOptions(source, TAB_ATTRIBUTES, fail);
+export const parseTabOptions = (source, fail, checks) =>
+  parseOptions(source, TAB_ATTRIBUTES, fail, checks);

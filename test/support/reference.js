@@ -10,7 +10,7 @@ import { basename, dirname, join, resolve } from 'node:path';
 import { mock } from 'node:test';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-export const REFERENCE_COMMIT = '87af00676f181524d8386c2af39a06554f227325';
+const REFERENCE_COMMIT = '87af00676f181524d8386c2af39a06554f227325';
 
 /** 원본 작업본 경로. 지정하지 않으면 원본 비교 시험은 건너뛴다. */
 export const referenceSource = process.env.HOMEPAGE_SOURCE;

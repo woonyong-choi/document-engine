@@ -77,15 +77,19 @@ const FALLBACK_ROLES = Object.freeze({
   punctuation: 'punctuation',
 });
 
-// 승인 원문의 실행용 펜스는 언어와 원문만 표시한다.
-const RUN_ALIASES = Object.freeze({
-  'run-python': 'python',
-  'run-c': 'c',
-  'run-javascript': 'javascript',
-  'run-sql': 'sql',
-  'run-shell': 'bash',
-  'run-web': 'html',
-});
+/**
+ * 호스트가 출력 문맥의 codeAliases로 준 별칭을 적용한 펜스 언어 정보. 별칭은 `{ 이름: { language, label? } }`이며
+ * 이름은 펜스 정보의 첫 낱말(소문자)과 비교한다. 별칭이 없으면 원래 정보와 undefined 라벨을 돌려준다.
+ * @param {string} info 펜스 정보 문자열
+ * @param {Record<string, { language: string, label?: string }> | undefined} aliases
+ * @returns {{ info: string, label?: string }}
+ */
+export function resolveCodeAlias(info, aliases) {
+  const word = info.trim().split(/\s+/)[0].toLowerCase();
+  const alias = aliases && Object.hasOwn(aliases, word) ? aliases[word] : undefined;
+  if (typeof alias?.language !== 'string') return { info };
+  return { info: alias.language, label: typeof alias.label === 'string' ? alias.label : undefined };
+}
 
 /**
  * @returns {Promise<{
@@ -162,10 +166,6 @@ function collectLanguages(hljs, bundledLanguages) {
         grammar: bundledLanguages[id] ? id : grammar,
       });
     }
-  }
-  for (const [alias, name] of Object.entries(RUN_ALIASES)) {
-    const language = languages.get(name);
-    languages.set(alias, { ...language, label: `${language.label} · 실행 미지원` });
   }
   return languages;
 }
