@@ -11,7 +11,7 @@ Markdown 해석기·렌더러·기본 테마 연결을 제공하는 공개 문�
 | `theme/` | 기본 테마 연결과 구성 요소 교체. 디자인은 peer 의존성 `@woonyong-choi/design-tokens` |
 | `test/` | 계약, 배포 파일, 홈페이지 원본 비교 시험 |
 
-디자인과 DiagramPlay(`diagramplay`)는 호스트 앱이 고르는 `^0.2.0` peer 의존성이다. 이 저장소의 시험은 `devDependencies`에 고정한 commit을 쓴다.
+디자인(`^0.2.0`)과 DiagramPlay(`diagramplay`, `^0.3.0`)는 호스트 앱이 고르는 peer 의존성이다. 이 저장소의 시험은 `devDependencies`에 고정한 commit을 쓴다.
 
 ## 명령
 

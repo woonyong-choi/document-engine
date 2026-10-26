@@ -223,7 +223,7 @@ props의 값은 두 종류다. 원문 글은 escape하지 않은 문자열이라
 | 의존성 | 선언 | 이유 |
 |---|---|---|
 | `@woonyong-choi/design-tokens` | `peerDependencies` `^0.2.0`, 시험용 `devDependencies` 고정 commit | 기본 테마는 호스트가 준 디자인을 쓴다 |
-| `diagramplay` | 선택 `peerDependencies` `^0.2.0`(`peerDependenciesMeta.optional`), 시험용 `devDependencies` 고정 commit | 도표는 호스트가 고른 렌더러로 만든다. 설치하지 않은 호스트도 문서 해석·출력은 쓸 수 있고, `compileDiagram`은 설치할 패키지를 알려 주는 오류를 던진다 |
+| `diagramplay` | 선택 `peerDependencies` `^0.3.0`(`peerDependenciesMeta.optional`), 시험용 `devDependencies` 고정 commit | 도표는 호스트가 고른 렌더러로 만든다. 설치하지 않은 호스트도 문서 해석·출력은 쓸 수 있고, `compileDiagram`은 설치할 패키지를 알려 주는 오류를 던진다 |
 | `katex` | `dependencies` `0.19.0`, `overrides` `katex: 0.19.0` | `@vscode/markdown-it-katex` 1.1.2는 `katex ^0.16.4`를 선언한다. 강제가 없으면 0.16.47이 따로 설치되어 수식 출력과 스타일·글꼴(`mathAssets`)의 KaTeX 판이 갈리고, 0.16 판의 보안 권고(GHSA-238p-pmpm-9mq7)가 남는다. katex의 `commander`는 강제하지 않고 katex 선언(`^15`)을 따른다 |
 
 peer 범위는 설치된 패키지의 `version`과 비교한다. Git으로 설치한 패키지도 이 값을 가지므로 호스트가 고른 commit 하나를 엔진과 DiagramPlay가 함께 읽는다. `compileDiagram`은 엔진과 DiagramPlay가 같은 디자인 패키지 위치를 읽는지 확인하고 다르면 도표를 거절한다.
