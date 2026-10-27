@@ -34,7 +34,7 @@ JS
 
 제목과 문단의 HTML, 빈 진단 목록을 출력합니다. 브라우저 화면의 CSS·runtime 연결과 HTML 저장은 호출자가 처리합니다.
 
-패키지로 설치하면 `document-engine`과 `document-engine/parser` 두 진입점만 import할 수 있습니다. 테마 없이 동기로 해석만 하려면 `document-engine/parser`의 `parseDocumentSync`를 쓰세요.
+패키지로 설치하면 `document-engine`, `document-engine/parser`, `document-engine/preview` 세 진입점만 import할 수 있습니다. 테마 없이 동기로 해석만 하려면 `document-engine/parser`의 `parseDocumentSync`를 쓰세요. 브라우저 작성 화면에서 사이트와 같은 HTML로 미리 보려면 `document-engine/preview`의 `renderPreview`를 쓰세요(코드 강조·도표 컴파일 제외).
 
 앱에서 설치할 때는 디자인(`@woonyong-choi/design-tokens`), 도표 렌더러(`diagramplay`), 엔진의 commit을 함께 고르세요. 디자인은 `^0.2.0`, 도표 렌더러는 `^0.3.0` peer 의존성이며, 도표를 쓰지 않으면 도표 렌더러는 설치하지 않아도 됩니다. npm 레지스트리에는 발행하지 않습니다.
 

@@ -26,7 +26,8 @@ test('pack_contains_only_what_the_engine_runs_on', () => {
   ]) {
     assert.ok(files.has(required), `${required} must be packed`);
   }
-  const allowed = /^(?:index\.js|package\.json|README\.md|LICENSE|parser\/|renderer\/|theme\/)/;
+  const allowed =
+    /^(?:index\.js|package\.json|README\.md|LICENSE|parser\/|preview\/|renderer\/|theme\/)/;
   const stray = [...files].filter((path) => !allowed.test(path));
   assert.deepEqual(stray, [], 'nothing outside the allowlist is packed');
   const forbidden = [...files].filter((path) =>
@@ -73,9 +74,9 @@ test('design_and_renderer_are_peer_dependencies_pinned_to_commits_for_the_tests'
   assert.equal(pkg.scripts.prepack, undefined);
 });
 
-test('only_the_root_and_parser_entry_points_are_importable_by_package_name', async () => {
+test('only_the_root_parser_and_preview_entry_points_are_importable_by_package_name', async () => {
   const pkg = JSON.parse(readFileSync(new URL('package.json', root), 'utf8'));
-  assert.deepEqual(Object.keys(pkg.exports), ['.', './parser', './package.json']);
+  assert.deepEqual(Object.keys(pkg.exports), ['.', './parser', './preview', './package.json']);
   const engine = await import('document-engine');
   assert.equal(typeof engine.parseDocument, 'function');
   assert.equal(typeof engine.renderDocument, 'function');
@@ -83,6 +84,8 @@ test('only_the_root_and_parser_entry_points_are_importable_by_package_name', asy
   const parser = await import('document-engine/parser');
   assert.deepEqual(Object.keys(parser), ['parseDocumentSync']);
   assert.equal(parser.parseDocumentSync('x', { id: 'a' }).version, 1);
+  const preview = await import('document-engine/preview');
+  assert.deepEqual(Object.keys(preview).sort(), ['parseDocumentSync', 'renderPreview']);
   for (const internal of [
     'document-engine/parser/parse-document.js',
     'document-engine/renderer/kit.js',

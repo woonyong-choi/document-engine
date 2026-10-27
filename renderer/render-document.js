@@ -3,12 +3,8 @@ import { loadDefaultTheme } from '../theme/default-theme.js';
 import { resolveComponents } from '../theme/resolve-theme.js';
 
 import { loadHighlighter, resolveCodeAlias } from './code-highlight.js';
-import { tabsWithScenes } from './directive-render.js';
-import { createKit } from './kit.js';
 import { usesMath } from './math-assets.js';
-import { createRenderer } from './markdown-rules.js';
-
-let renderer;
+import { renderTokens } from './render-state.js';
 
 /**
  * @typedef {object} RenderContext
@@ -43,26 +39,17 @@ export async function renderDocument(document, context = {}) {
   await highlighter.prepare(
     [...codeInfos(document.tokens)].map((info) => resolveCodeAlias(info, context.codeAliases).info),
   );
-  renderer ??= createRenderer();
   const usedAssets = new Map();
-  const kit = createKit(theme, context, usedAssets);
-  const render = {
-    documentId: context.id ?? document.id,
-    context,
-    kit,
+  const { html, diagnostics } = renderTokens(document, context, {
+    theme,
     components,
     highlighter,
-    diagnostics: [],
-    failedOpens: new WeakSet(),
-    sceneTabs: tabsWithScenes(document.tokens, context.diagrams),
-    pairs: [],
-    renderUnit: (unit) => renderUnit(unit, render),
-  };
-  const html = renderUnit({ tokens: document.tokens, env: document.env }, render);
+    usedAssets,
+  });
   return {
     html,
     headings: document.metadata.headings,
-    diagnostics: [...document.diagnostics, ...render.diagnostics],
+    diagnostics: [...document.diagnostics, ...diagnostics],
     assets: [...usedAssets].map(([name, url]) => ({ name, url })),
     runtime: theme.runtimeFor(html),
     math: usesMath(html),
@@ -90,15 +77,4 @@ function* codeInfos(tokens) {
 function diagramStatus(diagram) {
   if (diagram === undefined) return 'pending';
   return diagram.error ? 'failed' : 'embedded';
-}
-
-// 해석한 토큰 단위 하나를 그린다. 각주와 중첩 접미사는 단위의 env가 갖고 있다.
-function renderUnit(unit, render) {
-  const env = {
-    footnotes: unit.env.footnotes,
-    docId: unit.env.docId,
-    fenceLine: unit.env.fenceLine,
-    render,
-  };
-  return renderer.renderer.render(unit.tokens, renderer.options, env);
 }
