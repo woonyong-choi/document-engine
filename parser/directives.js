@@ -69,6 +69,10 @@ function isInlineMark(found, text) {
   return found.kind === 'leaf' && found.flat && findMarkEnd(text, 0, '::') > 0;
 }
 
+// 호스트가 탭 문법을 끈 문서에서는 탭 묶음을 진단으로 알린다. 생략하면 켜짐이다.
+const TABS_OFF = '탭 문법이 꺼져 있습니다. 호스트 설정의 features.tabs를 켜야 쓸 수 있습니다';
+const featureOn = (env, name) => env.context.features?.[name] !== false;
+
 // tabs와 platform 여는 줄은 언제나 `@tab` 줄과 `:::end`를 쓰는 탭 묶음이다.
 const isTabsForm = (line) => line.kind === 'open' && BLOCKS[line.name]?.tabs === true;
 
@@ -191,7 +195,10 @@ function recover(state, startLine, scope, error) {
 function parseDirective(state, startLine, endLine, found, scope) {
   const fail = failer(state.env, startLine + 1, found.name);
   if (found.kind === 'end') fail('여는 블록 없이 :::end 가 있습니다');
-  if (isTabsForm(found)) return tabsBlock(state, startLine, endLine, found, fail, scope);
+  if (isTabsForm(found)) {
+    if (!featureOn(state.env, 'tabs')) fail(TABS_OFF);
+    return tabsBlock(state, startLine, endLine, found, fail, scope);
+  }
   if (found.kind === 'close') fail('여는 줄 없이 닫는 줄이 있습니다');
   if (found.kind === 'invalid')
     fail('블록 줄 형식이 잘못되었습니다. :::이름 옵션 또는 닫는 :::end를 쓰세요');

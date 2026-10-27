@@ -597,3 +597,27 @@ test('ui_field_types_are_checked_at_parse_time_with_the_field_line', () => {
     assert.equal(document.tokens.at(-1).meta.role, 'error', source);
   }
 });
+
+// 호스트가 끈 선택 문법은 진단으로 알리고, 생략하면 이전처럼 켜져 있다.
+test('optional_features_report_disabled_tabs_and_diagrams_and_default_to_enabled', () => {
+  const tabs = ':::tabs\n@tab A\n\n가\n\n@tab B\n\n나\n\n:::end\n';
+  const component = '```ui:tabs\nitems:\n  - label: A\n    body: 가\n```\n';
+  const diagram = '```diagramplay\nA\n```\n';
+  for (const source of [tabs, diagram]) assert.deepEqual(parse(source).diagnostics, []);
+  const off = { features: { tabs: false, diagrams: false } };
+  for (const [source, pattern] of [
+    [tabs, /features\.tabs/],
+    [component, /features\.tabs/],
+    [diagram, /features\.diagrams/],
+  ]) {
+    const result = parse(source, off);
+    assert.ok(
+      result.diagnostics.some((item) => pattern.test(item.message)),
+      source,
+    );
+  }
+  assert.deepEqual(parse(diagram, off).metadata.diagrams, []);
+  assert.throws(() => parse('', { features: { tab: false } }), /unknown feature: tab/);
+  assert.throws(() => parse('', { features: { tabs: 'no' } }), /must be a boolean/);
+  assert.throws(() => parse('', { features: [] }), /must be an object/);
+});

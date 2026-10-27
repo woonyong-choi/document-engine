@@ -146,6 +146,12 @@ function classifyFence(state, token) {
   };
   const optionSource = kind.replace(/^\S+\s*/, '');
   if (/^diagramplay(?:\s|$)/.test(kind)) {
+    if (env.context.features?.diagrams === false) {
+      fail(
+        'DiagramPlay 도표가 꺼져 있습니다. 호스트 설정의 features.diagrams를 켜야 쓸 수 있습니다',
+        'diagramplay',
+      );
+    }
     const checks = { vocabulary: env.context.vocabulary };
     const options = parseOptions(optionSource, DIAGRAM_ATTRIBUTES, fail, checks);
     if (options.name !== undefined && !BLOCK_NAME.test(options.name)) {
@@ -175,6 +181,9 @@ function classifyComponent(state, token, kind, fail) {
     fail(message, where, line === undefined ? undefined : start + line),
   );
   if (!Object.hasOwn(UI_KINDS, name)) fail(`Unknown document component: ${name}`, where);
+  if (name === 'tabs' && state.env.context.features?.tabs === false) {
+    fail('탭 문법이 꺼져 있습니다. 호스트 설정의 features.tabs를 켜야 쓸 수 있습니다', where);
+  }
   const spec = UI_KINDS[name];
   checkFields(data, spec.fields, (message, path) => {
     const line = path === undefined ? undefined : lineOf(path);

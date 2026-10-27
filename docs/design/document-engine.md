@@ -64,6 +64,7 @@ console.log(output.diagnostics);
 | urls.isSafe(url) | 문서에 쓸 수 있는 주소인지 |
 | vocabulary.widths | 폭 옵션 `width`의 값 목록. 루트 `parseDocument`는 디자인 정본 `WIDTHS` |
 | vocabulary.cardVariants | `:::cards`의 `variant` 값 목록. 루트 `parseDocument`는 디자인 정본 `CARD_VARIANTS` |
+| features.tabs, features.diagrams | 선택 문법 사용 여부. `false`면 탭 묶음(`:::tabs`·`:::platform`·`ui:tabs`)과 `diagramplay` 펜스를 오류 진단으로 알리고 도표를 수집하지 않는다. 생략하면 켜짐이다. 다른 키나 불리언이 아닌 값은 `TypeError` |
 
 호스트의 파일 시스템 객체는 전달하지 않는다. 원문 문자열은 바꾸지 않는다.
 
