@@ -42,16 +42,19 @@ console.log(output.diagnostics);
 
 ### 진입점
 
-패키지 `exports`는 두 진입점만 연다. 그 밖의 내부 파일(`document-engine/renderer/kit.js` 등)은 패키지 이름으로 import할 수 없다(`ERR_PACKAGE_PATH_NOT_EXPORTED`).
+패키지 `exports`는 세 진입점만 연다. 그 밖의 내부 파일(`document-engine/renderer/kit.js` 등)은 패키지 이름으로 import할 수 없다(`ERR_PACKAGE_PATH_NOT_EXPORTED`).
 
 | 진입점 | 내용 |
 |---|---|
 | `document-engine` | `parseDocument`(비동기), `renderDocument`, `documentEngine`, `compileDiagram`, `compileDiagrams`, `mathAssets`, `MATH_STYLESHEET`, `usesMath`, `ThemeError`, `DEFAULT_THEME_FILES` |
 | `document-engine/parser` | `parseDocumentSync`(동기) |
+| `document-engine/preview` | `parseDocumentSync`, `renderPreview`(동기, 브라우저용) |
 
 `documentEngine`은 호출자가 `parseDocument(source, { id })`와 `renderDocument(document, { id })`로 부르는 객체다. 루트 `parseDocument`는 문법 확인 함수와 값 목록의 기본값(아이콘 카탈로그, 주소 정책, 폭·카드 모양 목록)을 기본 테마에서 채운 뒤 `parseDocumentSync`를 부르는 비동기 함수다.
 
 `parseDocumentSync`는 테마 없이 동기로 해석한다. 검증 함수와 값 목록은 호출자가 제공하고, 주지 않은 항목은 해석 단계에서 확인하지 않는다. 해석기 폴더는 디자인 패키지·DiagramPlay·렌더러·테마를 import하지 않는다. [parser.test.js](../../test/parser.test.js)의 경계 시험이 여러 줄 import, `export ... from`, 동적 `import()`까지 검사한다.
+
+`renderPreview(document, { ui, icons?, svg?, assets?, codeAliases? })`는 작성 화면 미리보기용 동기 출력이다. `renderDocument`와 같은 Markdown 규칙·기본 테마 구성 요소·출력 상태(`renderer/render-state.js`)를 쓰므로 그림 문단·코드 블록·인용·각주가 사이트와 같은 HTML이 된다. 디자인 모듈은 호출자가 이미 불러온 것을 넘긴다. 코드 강조(shiki·highlight.js), 도표 컴파일, 수학 자산 파일은 다루지 않아 Node 모듈 없이 브라우저 번들에 들어간다. 코드는 강조 없이 같은 코드 블록에, 도표는 원문 코드로 보인다. [preview.test.js](../../test/preview.test.js)가 사이트 출력과의 일치와 Node 모듈·강조기를 불러오지 않는 의존 경로를 검사한다.
 
 ### 해석 문맥
 
@@ -246,7 +249,7 @@ peer 범위는 설치된 패키지의 `version`과 비교한다. Git으로 설�
 | 요구사항 | 검증 계획 |
 |---|---|
 | 해석기는 HTML·테마·DOM·디자인 모듈을 사용하지 않는다 | [parser.test.js](../../test/parser.test.js)의 `parser_sources_do_not_import_the_renderer_theme_design_or_output_libraries` |
-| 공개 진입점만 import할 수 있다 | [package.test.js](../../test/package.test.js)의 `only_the_root_and_parser_entry_points_are_importable_by_package_name` |
+| 공개 진입점만 import할 수 있다 | [package.test.js](../../test/package.test.js)의 `only_the_root_parser_and_preview_entry_points_are_importable_by_package_name` |
 | 해석과 출력이 원문·문서 토큰을 바꾸지 않는다 | [parser.test.js](../../test/parser.test.js)의 `the_source_string_is_never_modified_by_parsing`, [renderer.test.js](../../test/renderer.test.js)의 `render_does_not_change_the_document_and_repeats_the_same_output` |
 | 테마 교체 함수의 실패를 문서 위치가 있는 진단으로 돌려준다 | [renderer.test.js](../../test/renderer.test.js)의 `a_failing_replacement_is_a_located_diagnostic_and_shows_an_error_block` |
 | 문법 오류는 원본 없이도 위치가 있는 진단으로 검사한다 | [output.test.js](../../test/output.test.js)의 `error_case_is_a_located_diagnostic_<이름>`, `ui_error_case_is_a_diagnostic_<이름>` |

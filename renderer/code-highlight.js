@@ -1,6 +1,8 @@
 // 언어 문법의 scope를 공통 구문 역할로 연결한다. 색과 HTML은 테마 구성 요소가 정한다.
 // 언어 목록(이름·별칭·표시 이름)의 기준은 highlight.js 하나다. 같은 이름의 TextMate 문법이 shiki에 있으면 그 문법으로,
 // 없으면 highlight.js로 분석한다. TextMate 문법은 문서가 쓰는 언어만 렌더링 전에 불러온다.
+export { resolveCodeAlias } from './code-alias.js';
+
 let loading;
 
 /**
@@ -76,20 +78,6 @@ const FALLBACK_ROLES = Object.freeze({
   operator: 'operator',
   punctuation: 'punctuation',
 });
-
-/**
- * 호스트가 출력 문맥의 codeAliases로 준 별칭을 적용한 펜스 언어 정보. 별칭은 `{ 이름: { language, label? } }`이며
- * 이름은 펜스 정보의 첫 낱말(소문자)과 비교한다. 별칭이 없으면 원래 정보와 undefined 라벨을 돌려준다.
- * @param {string} info 펜스 정보 문자열
- * @param {Record<string, { language: string, label?: string }> | undefined} aliases
- * @returns {{ info: string, label?: string }}
- */
-export function resolveCodeAlias(info, aliases) {
-  const word = info.trim().split(/\s+/)[0].toLowerCase();
-  const alias = aliases && Object.hasOwn(aliases, word) ? aliases[word] : undefined;
-  if (typeof alias?.language !== 'string') return { info };
-  return { info: alias.language, label: typeof alias.label === 'string' ? alias.label : undefined };
-}
 
 /**
  * @returns {Promise<{

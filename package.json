@@ -14,11 +14,13 @@
   "exports": {
     ".": "./index.js",
     "./parser": "./parser/index.js",
+    "./preview": "./preview/index.js",
     "./package.json": "./package.json"
   },
   "files": [
     "index.js",
     "parser/",
+    "preview/",
     "renderer/",
     "theme/"
   ],
