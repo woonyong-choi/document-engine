@@ -123,12 +123,12 @@ test('task_items_become_semantic_tokens_with_states', () => {
 
 test('ui_fences_keep_yaml_data_and_pre_parsed_nested_markdown_without_reparsing_at_output', () => {
   const source =
-    '```ui:tabs\nitems:\n  - { label: A, body: "**가**" }\n  - { label: B, body: "나[^1]\\n\\n[^1]: 각주" }\n```\n';
+    '```ui:definitions\nitems:\n  - { term: A, body: "**가**" }\n  - { term: B, body: "나[^1]\\n\\n[^1]: 각주" }\n```\n';
   const document = parse(source);
   const [fence] = document.tokens;
   assert.equal(fence.meta.role, 'ui');
-  assert.equal(fence.meta.kind, 'tabs');
-  assert.equal(fence.meta.data.items[0].label, 'A');
+  assert.equal(fence.meta.kind, 'definitions');
+  assert.equal(fence.meta.data.items[0].term, 'A');
   assert.deepEqual(
     fence.meta.units.map((unit) => unit.path),
     ['items.0.body', 'items.1.body'],
@@ -237,15 +237,15 @@ test('syntax_errors_return_located_diagnostics_and_keep_the_rest_of_the_document
 
 test('an_error_inside_a_nested_block_becomes_one_error_token_and_keeps_its_parent_valid', () => {
   const source =
-    ':::tabs\n@tab A\n\n::figure{src=nope.png alt=a}\n\n정상\n\n@tab B\n\n나\n\n:::end\n';
+    ':::gallery\n::slide{src=2-today-mac.png alt=a}\n::slide{src=nope.png alt=b}\n:::\n';
   const document = parse(source);
   assert.deepEqual(
     document.diagnostics.map(({ line, message }) => [line, message]),
-    [[4, 'src: 없는 자산입니다: nope.png']],
+    [[3, 'src: 없는 자산입니다: nope.png']],
   );
   const kinds = document.tokens.map((token) => token.type);
   assert.ok(kinds.includes('directive_error'));
-  assert.equal(kinds.filter((type) => type === 'directive_open').length, 3);
+  assert.equal(kinds.filter((type) => type === 'directive_open').length, 1);
 });
 
 test('inline_errors_keep_the_original_text_and_record_the_line', () => {
@@ -270,10 +270,10 @@ test('unknown_components_and_bad_yaml_are_diagnosed_with_lines', () => {
     [unknown.diagnostics[0].line, unknown.diagnostics[0].message],
     [3, 'Unknown document component: nope'],
   );
-  const yaml = parse('```ui:tabs\nitems: [\n```\n');
+  const yaml = parse('```ui:cards\nitems: [\n```\n');
   assert.equal(yaml.diagnostics.length, 1);
   assert.equal(yaml.diagnostics[0].line >= 1, true);
-  assert.match(yaml.diagnostics[0].message, /ui:tabs/);
+  assert.match(yaml.diagnostics[0].message, /ui:cards/);
 });
 
 test('validation_functions_are_optional_and_only_checked_when_the_caller_supplies_them', () => {
@@ -432,7 +432,7 @@ test('component_hrefs_are_collected_from_directives_and_ui_components_with_their
     ':::cards{variant=centered}',
     '::card{title="가" href=/a.md}',
     '::card{title="나" href=https://example.com/b}',
-    ':::end',
+    ':::',
     '',
     '::figure{src=x.png alt=a href=/c.md}',
     '',
@@ -537,7 +537,7 @@ test('a_highlight_at_the_start_of_a_line_closed_on_the_same_line_is_text_not_a_b
 test('a_closing_line_right_after_a_paragraph_is_diagnosed_not_kept_as_text', () => {
   for (const [source, line, pattern] of [
     ['문단\n:::\n', 2, /여는 줄 없이 닫는 줄이 있습니다/],
-    ['문단\n:::end\n', 2, /여는 블록 없이 :::end 가 있습니다/],
+    ['문단\n:::end\n', 2, /알 수 없는 블록입니다/],
     ['문단\n:::  note\n', 2, /블록 줄 형식이 잘못되었습니다/],
   ]) {
     const document = parse(source);
@@ -579,7 +579,7 @@ test('ui_field_types_are_checked_at_parse_time_with_the_field_line', () => {
     ['```ui:syntax-examples\nitems: 3\n```\n', 2, /^items: 항목 목록이어야 합니다$/],
     ['```ui:callout\ntitle: t\nbody: {a: 1}\n```\n', 3, /^body: 글이어야 합니다$/],
     [
-      '```ui:tabs\nitems:\n  - label: A\n    body: [1]\n```\n',
+      '```ui:definitions\nitems:\n  - term: A\n    body: [1]\n```\n',
       4,
       /^items\.0\.body: 글이어야 합니다$/,
     ],
@@ -598,26 +598,18 @@ test('ui_field_types_are_checked_at_parse_time_with_the_field_line', () => {
   }
 });
 
-// 호스트가 끈 선택 문법은 진단으로 알리고, 생략하면 이전처럼 켜져 있다.
-test('optional_features_report_disabled_tabs_and_diagrams_and_default_to_enabled', () => {
-  const tabs = ':::tabs\n@tab A\n\n가\n\n@tab B\n\n나\n\n:::end\n';
-  const component = '```ui:tabs\nitems:\n  - label: A\n    body: 가\n```\n';
+// 호스트가 끈 선택 문법은 진단으로 알리고, 생략하면 켜져 있다. 선택 문법은 도표 하나다.
+test('optional_diagrams_report_when_disabled_and_default_to_enabled', () => {
   const diagram = '```diagramplay\nA\n```\n';
-  for (const source of [tabs, diagram]) assert.deepEqual(parse(source).diagnostics, []);
-  const off = { features: { tabs: false, diagrams: false } };
-  for (const [source, pattern] of [
-    [tabs, /features\.tabs/],
-    [component, /features\.tabs/],
-    [diagram, /features\.diagrams/],
-  ]) {
-    const result = parse(source, off);
-    assert.ok(
-      result.diagnostics.some((item) => pattern.test(item.message)),
-      source,
-    );
-  }
-  assert.deepEqual(parse(diagram, off).metadata.diagrams, []);
-  assert.throws(() => parse('', { features: { tab: false } }), /unknown feature: tab/);
-  assert.throws(() => parse('', { features: { tabs: 'no' } }), /must be a boolean/);
+  assert.deepEqual(parse(diagram).diagnostics, []);
+  const off = { features: { diagrams: false } };
+  const result = parse(diagram, off);
+  assert.ok(
+    result.diagnostics.some((item) => /features\.diagrams/.test(item.message)),
+    diagram,
+  );
+  assert.deepEqual(result.metadata.diagrams, []);
+  assert.throws(() => parse('', { features: { tabs: true } }), /unknown feature: tabs/);
+  assert.throws(() => parse('', { features: { diagrams: 'no' } }), /must be a boolean/);
   assert.throws(() => parse('', { features: [] }), /must be an object/);
 });

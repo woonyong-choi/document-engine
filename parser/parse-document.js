@@ -12,7 +12,7 @@ let parser;
  * @property {{ exists(name: string): boolean }} [assets] 자산 이름이 있는지 확인한다
  * @property {{ has(name: string): boolean }} [icons] 아이콘 이름이 카탈로그에 있는지 확인한다
  * @property {{ isSafe(url: string): boolean }} [urls] 문서에 쓸 수 있는 주소인지 확인한다
- * @property {{ tabs?: boolean, diagrams?: boolean }} [features] 선택 문법 사용 여부. 생략한 항목은 켜짐이다
+ * @property {{ diagrams?: boolean }} [features] 선택 문법 사용 여부. 생략한 항목은 켜짐이다
  * @property {{ widths?: string[], cardVariants?: string[] }} [vocabulary] 디자인이 정한 값 목록. 없는 목록은 해석 단계에서 확인하지 않는다
  */
 
@@ -52,7 +52,7 @@ export function parseDocumentSync(source, context = {}) {
   };
 }
 
-const FEATURES = ['tabs', 'diagrams'];
+const FEATURES = ['diagrams'];
 
 // 선택 문법 스위치는 이름이 정해진 불리언만 받는다. 오타가 조용히 무시되지 않게 한다.
 function checkFeatures(features) {

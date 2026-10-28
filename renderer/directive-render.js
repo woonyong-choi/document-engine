@@ -9,53 +9,9 @@ const CALLOUTS = Object.freeze({
   warning: { tone: 'warning', title: '주의' },
 });
 
-// 장면 선택 줄이 있는 도표를 품은 일반 탭 묶음은 바깥 선택 줄과 구분되도록 생략한 position과 selector만 채운다.
-// 명시한 옵션과 platform 묶음은 그대로 둔다.
-const SCENE_TABS = Object.freeze({ position: 'top', selector: 'segmented' });
-
-const tabsProps = (meta, withScenes) => ({
-  id: meta.id,
-  label: meta.label,
-  platform: meta.name === 'platform',
-  labels: meta.tabs,
-  ...(withScenes && meta.name !== 'platform' ? SCENE_TABS : {}),
-  ...meta.options,
-});
-
-/**
- * 장면이 둘 이상인 도표를 품은 탭 묶음을 렌더 전에 한 번 정한다. 열기와 닫기가 같은 결정을 쓰고 뒤따르는 묶음에는 전해지지 않는다.
- * @param {object[]} tokens 해석한 토큰
- * @param {Map<string, { scenes?: number }> | undefined} diagrams 도표 원문별 컴파일 결과
- * @returns {WeakSet<object>} 대상 묶음의 meta
- */
-export function tabsWithScenes(tokens, diagrams) {
-  const marked = new WeakSet();
-  const open = [];
-  for (const token of tokens) {
-    if (token.type === 'directive_open' && token.meta.name === 'tabs') open.push(token.meta);
-    else if (token.type === 'directive_close' && token.meta === open.at(-1)) open.pop();
-    else if (token.type === 'fence' && open.length && token.meta?.role === 'diagram') {
-      if (diagrams?.get(token.content)?.scenes > 1) marked.add(open.at(-1));
-    }
-  }
-  return marked;
-}
-
 // 이름별 출력. open/close는 블록 앞뒤, render는 본문 없는 블록 하나다. 구성 요소 이름과 입력은 theme/components.js가 정한다.
 const BLOCKS = Object.freeze({
   __proto__: null,
-  tabs: {
-    open: (meta, call, scenes) => call('tabs', 'open', tabsProps(meta, scenes)),
-    close: (meta, call, scenes) => call('tabs', 'close', tabsProps(meta, scenes)),
-  },
-  platform: {
-    open: (meta, call) => call('tabs', 'open', tabsProps(meta)),
-    close: (meta, call) => call('tabs', 'close', tabsProps(meta)),
-  },
-  tab: {
-    open: (meta, call) => call('tab', 'open', { id: meta.group, index: meta.index }),
-    close: (meta, call) => call('tab', 'close', {}),
-  },
   note: {
     open: (meta, call) => call('callout', 'open', calloutProps(meta)),
     close: (meta, call) => call('callout', 'close', {}),
@@ -135,15 +91,10 @@ function callerOf(render, line) {
 export function renderDirective(render, token, line) {
   const { meta } = token;
   const { call, state } = callerOf(render, line);
-  const scenes = render.sceneTabs?.has(meta) ?? false;
   if (token.type === 'directive_close') {
-    return render.failedOpens.has(meta) ? '' : BLOCKS[meta.name].close(meta, call, scenes);
+    return render.failedOpens.has(meta) ? '' : BLOCKS[meta.name].close(meta, call);
   }
-  const output = BLOCKS[meta.name][token.type === 'directive_open' ? 'open' : 'render'](
-    meta,
-    call,
-    scenes,
-  );
+  const output = BLOCKS[meta.name][token.type === 'directive_open' ? 'open' : 'render'](meta, call);
   if (token.type === 'directive_open' && state.failed) render.failedOpens.add(meta);
   return output;
 }

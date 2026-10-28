@@ -204,19 +204,16 @@ test('card_variants_come_from_the_design_package_including_summary', async () =>
   assert.match(html, /app-card-summary/);
 });
 
-// #25 옛 문법: 옛 펜스 이름, 옛 `::::tabs`+`:::tab[이름]`, 옛 붙임·약칭 옵션은 현재 문법의 일반 규칙으로 처리한다.
-test('old_tab_sets_and_old_options_are_ordinary_syntax_errors', async () => {
+// 없앤 문법: 탭 묶음(`:::tabs`·`:::platform`·`@tab`·`:::end`), 옛 `::::tabs`+`:::tab[이름]`, 옛 붙임·약칭 옵션은 일반 블록 규칙의 위치 있는 진단이다.
+test('removed_tab_syntax_and_old_options_are_ordinary_syntax_errors', async () => {
   const cases = [
     ['::::tabs\n:::tab[A]\n가\n:::\n::::\n', 1, /^블록 줄 형식이 잘못되었습니다/],
     [':::tab[A]\n가\n:::\n', 1, /^알 수 없는 블록입니다/],
     ['::::platform[기기]\n:::tab[Mac]\n가\n:::\n::::\n', 1, /^블록 줄 형식이 잘못되었습니다/],
-    [
-      ':::tabs selector-segmented\n@tab A\n\n가\n\n:::end\n',
-      1,
-      /^허용하지 않는 속성입니다: selector-segmented/,
-    ],
-    [':::tabs box\n@tab A\n\n가\n\n:::end\n', 1, /^허용하지 않는 속성입니다: box/],
-    [':::tabs top segmented\n@tab A\n\n가\n\n:::end\n', 1, /^허용하지 않는 속성입니다: top/],
+    [':::tabs\n@tab A\n\n가\n\n:::end\n', 1, /^알 수 없는 블록입니다/],
+    [':::tabs selector=segmented\n@tab A\n\n가\n\n:::end\n', 1, /^알 수 없는 블록입니다/],
+    [':::platform\n@tab Mac\n\n가\n\n:::end\n', 1, /^알 수 없는 블록입니다/],
+    [':::end\n', 1, /^알 수 없는 블록입니다/],
     ['::figure w-narrow src=2-today-mac.png alt=a\n', 1, /^허용하지 않는 속성입니다: w-narrow/],
     [
       ':::cards centered\n::card{title=a href=/a/}\n:::\n',

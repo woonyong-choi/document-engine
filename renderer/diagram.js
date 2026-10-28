@@ -9,8 +9,7 @@ let checked;
 /**
  * 도표 원문 하나를 독립 HTML 문서와 삽입 정보로 만든다.
  * @param {string} source 도표 원문(첫 의미 줄이 `diagramplay`). 그대로 DiagramPlay에 넘기며 파일 접근은 허용하지 않는다
- * @returns {Promise<{ src: string, title: string, dimensions: { width: number, height: number }, scenes: number, html: Buffer }>}
- *   scenes는 컴파일 결과의 장면 선택 단계 수다(원문이나 HTML을 다시 읽어 세지 않는다)
+ * @returns {Promise<{ src: string, title: string, dimensions: { width: number, height: number }, html: Buffer }>}
  *   src는 html을 제공할 사이트 경로다. 같은 원문은 같은 src를 얻는다
  * @throws {Error} 원문 오류, diagramplay가 설치되지 않았을 때, DiagramPlay와 기본 테마가 서로 다른 디자인 패키지를 읽을 때
  */
@@ -27,7 +26,6 @@ export async function compileDiagram(source) {
       src: `/diagrams/${hash}.html`,
       title,
       dimensions: { width: result.scene.width, height: result.scene.height },
-      scenes: result.timeline.steps.length,
       html,
     };
   } catch (error) {

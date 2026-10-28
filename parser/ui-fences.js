@@ -64,14 +64,6 @@ const UI_KINDS = Object.freeze({
   'figure-grid': { fields: { items: items() }, bodies: () => [] },
   video: { fields: { src: TEXT, poster: TEXT, title: TEXT, caption: TEXT }, bodies: () => [] },
   gallery: { fields: { title: TEXT, slides: items() }, bodies: () => [] },
-  platform: {
-    fields: { title: TEXT, items: items({ ...ITEM_BODY, label: TEXT }) },
-    bodies: itemBodies,
-  },
-  tabs: {
-    fields: { title: TEXT, items: items({ ...ITEM_BODY, label: TEXT }) },
-    bodies: itemBodies,
-  },
   cards: { fields: { variant: TEXT, items: items({}, true) }, bodies: () => [] },
   definitions: {
     fields: { items: items({ ...ITEM_BODY, term: TEXT }, true) },
@@ -181,9 +173,6 @@ function classifyComponent(state, token, kind, fail) {
     fail(message, where, line === undefined ? undefined : start + line),
   );
   if (!Object.hasOwn(UI_KINDS, name)) fail(`Unknown document component: ${name}`, where);
-  if (name === 'tabs' && state.env.context.features?.tabs === false) {
-    fail('탭 문법이 꺼져 있습니다. 호스트 설정의 features.tabs를 켜야 쓸 수 있습니다', where);
-  }
   const spec = UI_KINDS[name];
   checkFields(data, spec.fields, (message, path) => {
     const line = path === undefined ? undefined : lineOf(path);

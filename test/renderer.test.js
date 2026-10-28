@@ -187,7 +187,7 @@ test('runtime_entrypoints_math_flag_and_headings_come_with_the_output', async ()
   );
   const rich = await render(
     await parse(
-      ':::tabs\n@tab A\n\n$x^2$\n\n@tab B\n\n나\n\n:::end\n\n::video{src=3-upcoming-mac-2.mp4 poster=3-upcoming-mac-2.png alt=v}\n\n```js\nx\n```\n',
+      '$x^2$\n\n:::gallery\n::slide{src=2-today-mac.png alt=a}\n:::\n\n::video{src=3-upcoming-mac-2.mp4 poster=3-upcoming-mac-2.png alt=v}\n\n```js\nx\n```\n',
     ),
   );
   assert.deepEqual(rich.runtime.toSorted(), ['document.js', 'video.js']);
@@ -195,7 +195,7 @@ test('runtime_entrypoints_math_flag_and_headings_come_with_the_output', async ()
 });
 
 test('dark_mode_is_a_theme_attribute_so_the_same_html_serves_light_and_dark', async () => {
-  const output = await render(await parse(DOCUMENTS.tab_bodies_with_code_images_footnotes_and_ui));
+  const output = await render(await parse(DOCUMENTS.note_bodies_with_code_images_footnotes_and_ui));
   const tokens = readFileSync(
     new URL(DEFAULT_THEME_FILES.tokens, DEFAULT_THEME_FILES.root),
     'utf8',
@@ -248,10 +248,6 @@ test('diagramplay_compiles_to_data_and_embeds_without_blocking_the_document', as
   assert.match(first.src, /^\/diagrams\/[0-9a-f]{64}\.html$/);
   assert.equal(first.title, 'Mini');
   assert.ok(first.dimensions.width > 0 && first.html.length > 1000);
-  assert.ok(
-    Number.isInteger(first.scenes) && first.scenes >= 0,
-    'scenes comes from the compile result',
-  );
   assert.equal(
     (await compileDiagram(flow)).src,
     first.src,
@@ -302,7 +298,7 @@ test('component_props_are_deep_copies_so_replacements_cannot_change_the_document
   const source = [
     '::figure{src=2-today-mac.png alt=원본}',
     ':::gallery{title=갤러리}\n::slide{src=2-today-mac.png alt=슬라이드}\n:::',
-    ':::tabs\n@tab 가\n\n본문\n\n:::end',
+    ':::cards{variant=centered}\n::card{title=가 href=/a/}\n:::',
     '```ui:figure\nsrc: 2-today-mac.png\nalt: 데이터\n```',
   ].join('\n\n');
   const document = await parse(source);
@@ -325,15 +321,16 @@ test('component_props_are_deep_copies_so_replacements_cannot_change_the_document
         mutate(props);
         return '<div>g</div>';
       },
-      tabs: {
+      cards: {
         open: (props) => {
           mutate(props);
           return '<section>';
         },
         close: (props) => {
-          assert.deepEqual(props.labels, ['가'], 'close must receive its own copy');
+          assert.equal(props.variant, 'centered', 'close must receive its own copy');
           return '</section>';
         },
+        gap: () => '',
       },
     },
   };
@@ -348,7 +345,6 @@ test('a_failed_open_never_emits_its_close_for_ui_components_and_markdown_pairs',
   const cases = [
     ['callout', '```ui:callout\ntitle: x\nbody: 안\n```\n', 'callout'],
     ['details', '```ui:details\ntitle: x\nbody: 안\n```\n', 'details'],
-    ['tabs', '```ui:tabs\nitems:\n  - { label: A, body: 안 }\n```\n', 'tabs'],
     ['cards', '```ui:cards\nitems:\n  - { title: a, href: /a/, icon: false }\n```\n', 'cards'],
     ['details', '<details>\n<summary>요약</summary>\n\n안\n</details>\n', 'details'],
     ['table', '| a |\n|---|\n| b |\n', 'table'],
@@ -414,7 +410,6 @@ test('an_inner_failure_does_not_erase_the_outer_pair_state_in_any_nesting', asyn
   };
   const theme = {
     components: {
-      tabs: { open: open('outer-tabs'), close: close('outer-tabs') },
       details: {
         open: open('outer-details'),
         close: close('outer-details'),
@@ -426,20 +421,17 @@ test('an_inner_failure_does_not_erase_the_outer_pair_state_in_any_nesting', asyn
     },
   };
   const source = [
-    '```ui:tabs\nitems:\n  - label: A\n    body: "```ui:callout\\ntitle: x\\nbody: 안\\n```"\n```',
+    '```ui:details\ntitle: 바깥\nbody: "```ui:callout\\ntitle: x\\nbody: 안\\n```"\n```',
     '<details>\n<summary>요약</summary>\n\n| a |\n|---|\n| b |\n\n</details>',
-    ':::tabs\n@tab A\n\n:::note\n안\n:::\n\n:::end',
   ].join('\n\n');
   const { html, diagnostics } = await render(await parse(source), { theme });
-  // 탭 묶음은 ui:tabs와 :::tabs 두 개다.
-  assert.equal((html.match(/<outer-tabs>/g) ?? []).length, 2);
-  assert.equal((html.match(/<\/outer-tabs>/g) ?? []).length, 2);
-  assert.equal((html.match(/<outer-details>/g) ?? []).length, 1);
-  assert.equal((html.match(/<\/outer-details>/g) ?? []).length, 1);
+  // 바깥 쌍은 ui:details와 HTML details 두 개다.
+  assert.equal((html.match(/<outer-details>/g) ?? []).length, 2);
+  assert.equal((html.match(/<\/outer-details>/g) ?? []).length, 2);
   assert.doesNotMatch(html, /inner-broken/);
   assert.deepEqual(
     diagnostics.map((item) => item.component),
-    ['callout.open', 'table.open', 'callout.open'],
+    ['callout.open', 'table.open'],
   );
 });
 
@@ -551,83 +543,6 @@ test('image_attributes_escape_asset_urls_and_reject_unsafe_urls_and_sizes', asyn
     );
     assert.doesNotMatch(bad.html, /onerror=/);
   }
-});
-
-const tabsOf = (diagram, options = '') =>
-  `:::tabs${options}\n@tab 도표\n\n\`\`\`diagramplay\n${diagram}\`\`\`\n\n@tab 글\n\n본문\n:::end\n`;
-
-test('tabs_holding_a_multi_scene_diagram_fill_only_omitted_position_and_selector', async () => {
-  const many = 'diagramplay\nmany\n';
-  const one = 'diagramplay\none\n';
-  const embed = (scenes) => ({
-    src: '/diagrams/x.html',
-    title: 't',
-    dimensions: { width: 10, height: 10 },
-    scenes,
-  });
-  const known = new Map([
-    [many, embed(2)],
-    [one, embed(1)],
-  ]);
-  const unscened = new Map([
-    [many, embed(undefined)],
-    [one, embed(undefined)],
-  ]);
-  const html = async (diagram, options = '', diagrams = known) =>
-    (await render(await parse(tabsOf(diagram, options)), { diagrams })).html;
-  assert.equal(await html(many), await html(many, ' position=top selector=segmented'));
-  assert.notEqual(await html(many), await html(one));
-  assert.equal(await html(one), await html(one, '', unscened));
-  assert.notEqual(await html(many, '', unscened), await html(many));
-  assert.equal(
-    await html(many, ' selector=numbers'),
-    await html(many, ' position=top selector=numbers'),
-  );
-  assert.equal(
-    await html(many, ' frame=panel'),
-    await html(many, ' frame=panel position=top selector=segmented'),
-  );
-  assert.equal(
-    await html(many, ' position=bottom'),
-    await html(many, ' position=bottom selector=segmented'),
-  );
-  assert.notEqual(await html(many, ' frame=panel'), await html(many));
-});
-
-test('platform_tabs_and_later_tab_sets_ignore_the_scene_decision', async () => {
-  const many = 'diagramplay\nmany\n';
-  const plainDiagram = 'diagramplay\none\n';
-  const embed = (scenes) => ({
-    src: '/diagrams/x.html',
-    title: 't',
-    dimensions: { width: 10, height: 10 },
-    scenes,
-  });
-  const diagrams = new Map([
-    [many, embed(2)],
-    [plainDiagram, embed(1)],
-  ]);
-  const without = new Map([
-    [many, embed(undefined)],
-    [plainDiagram, embed(undefined)],
-  ]);
-  const fence = `\`\`\`diagramplay\n${many}\`\`\`\n`;
-  const platformNew = `:::platform\n@tab Mac\n\n${fence}\n@tab Win\n\n본문\n:::end\n`;
-  for (const input of [
-    platformNew,
-    `:::platform position=top\n@tab Mac\n\n${fence}\n@tab Win\n\n본문\n:::end\n`,
-  ]) {
-    const document = await parse(input);
-    const withScenes = await render(document, { diagrams });
-    assert.match(withScenes.html, /^<section class="app-tabs is-platform"/);
-    assert.equal(withScenes.html, (await render(document, { diagrams: without })).html);
-  }
-  const normal = (value) => value.replace(/component-[\w-]+?-\d+/g, 'X');
-  const alone = normal((await render(await parse(tabsOf(plainDiagram)), { diagrams })).html);
-  const both = (await render(await parse(tabsOf(many) + tabsOf(plainDiagram)), { diagrams })).html;
-  const sections = both.split('<section').slice(1);
-  assert.equal(sections.length, 2);
-  assert.equal(normal(`<section${sections[1]}`), alone);
 });
 
 test('diagramplay_name_never_reaches_the_rendered_html_or_the_diagram_path', async () => {

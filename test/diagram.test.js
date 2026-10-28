@@ -44,7 +44,6 @@ test('compileDiagram_preserves_copy_and_download_source', async () => {
 
     assert.equal(result.title, 'Mini');
     assert.match(result.html.toString(), /aria-label="diagramplay label"/);
-    assert.equal(result.scenes, 1);
     assert.match(result.src, /^\/diagrams\/[0-9a-f]{64}\.html$/);
     assertPlayerSource(result.html.toString(), source);
     assert.equal((await compileDiagram(source)).src, result.src);

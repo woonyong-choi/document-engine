@@ -59,7 +59,7 @@ npm install --save-dev \
 
 ![원문을 해석한 결과를 테마로 출력하고 호출자가 문서 화면에 연결합니다](docs/assets/document-flow.svg)
 
-해석과 출력은 원문을 바꾸지 않습니다. 도표는 `diagramplay` 펜스로 쓰며 DiagramPlay 렌더러가 원문 그대로 컴파일하고, 문법 복사와 HTML 다운로드에도 입력 원문을 담습니다. 옛 문법(`thinkflow`·`torso` 펜스, `::::tabs`, 약칭 옵션)은 받지 않습니다. 지원하지 않는 아이콘은 진단으로 반환합니다. 전체 계약과 호스트의 책임은 [문서 엔진](docs/design/document-engine.md)에 있습니다.
+해석과 출력은 원문을 바꾸지 않습니다. 도표는 `diagramplay` 펜스로 쓰며 DiagramPlay 렌더러가 원문 그대로 컴파일하고, 문법 복사와 HTML 다운로드에도 입력 원문을 담습니다. 탭 문법(`:::tabs`·`:::platform`·`@tab`·`:::end`, `ui:tabs`·`ui:platform`)은 없앴으며 다른 알 수 없는 블록처럼 위치가 있는 진단으로 반환합니다. 옛 문법(`thinkflow`·`torso` 펜스, `::::tabs`, 약칭 옵션)도 받지 않습니다. 지원하지 않는 아이콘은 진단으로 반환합니다. 전체 계약과 호스트의 책임은 [문서 엔진](docs/design/document-engine.md)에 있습니다.
 
 ## 상태
 

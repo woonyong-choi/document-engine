@@ -3,8 +3,6 @@
 
 /** 사용자 테마가 바꿀 수 있는 구성 요소와 필요한 함수. 문자열은 `name.method` 형식이다. */
 export const COMPONENT_SHAPES = Object.freeze({
-  tabs: ['open', 'close'],
-  tab: ['open', 'close'],
   callout: ['open', 'close'],
   steps: ['open', 'close'],
   cards: ['open', 'close', 'gap'],
@@ -120,14 +118,6 @@ function code(props, kit) {
 /** @returns {object} 기본 구성 요소 표 */
 export function createDefaultComponents() {
   return Object.freeze({
-    tabs: {
-      open: (props, { ui }) => ui.Tabs.open(props),
-      close: (props, { ui }) => ui.Tabs.close(props),
-    },
-    tab: {
-      open: (props, { ui }) => ui.Tabs.panelOpen(props),
-      close: (props, { ui }) => ui.Tabs.panelClose(),
-    },
     callout: {
       open: (props, { ui }) => ui.Callout.open(props),
       close: (props, { ui }) => ui.Callout.close(),

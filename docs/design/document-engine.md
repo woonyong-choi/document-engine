@@ -67,7 +67,7 @@ console.log(output.diagnostics);
 | urls.isSafe(url) | 문서에 쓸 수 있는 주소인지 |
 | vocabulary.widths | 폭 옵션 `width`의 값 목록. 루트 `parseDocument`는 디자인 정본 `WIDTHS` |
 | vocabulary.cardVariants | `:::cards`의 `variant` 값 목록. 루트 `parseDocument`는 디자인 정본 `CARD_VARIANTS` |
-| features.tabs, features.diagrams | 선택 문법 사용 여부. `false`면 탭 묶음(`:::tabs`·`:::platform`·`ui:tabs`)과 `diagramplay` 펜스를 오류 진단으로 알리고 도표를 수집하지 않는다. 생략하면 켜짐이다. 다른 키나 불리언이 아닌 값은 `TypeError` |
+| features.diagrams | 선택 문법 사용 여부. `false`면 `diagramplay` 펜스를 오류 진단으로 알리고 도표를 수집하지 않는다. 생략하면 켜짐이다. 다른 키(없앤 `tabs` 포함)나 불리언이 아닌 값은 `TypeError` |
 
 호스트의 파일 시스템 객체는 전달하지 않는다. 원문 문자열은 바꾸지 않는다.
 
@@ -77,13 +77,13 @@ console.log(output.diagnostics);
 
 | 문법 | 형식 | 옛 입력의 처리 |
 |---|---|---|
-| 블록 | `:::이름[라벨]{속성}` 또는 `:::이름 속성` … `:::` | 네 콜론 이상(`::::tabs`)은 `블록 줄 형식이 잘못되었습니다` |
+| 블록 | `:::이름[라벨]{속성}` 또는 `:::이름 속성` … `:::` | 네 콜론 이상(`::::note`)은 `블록 줄 형식이 잘못되었습니다` |
 | 리프 | `::이름{속성}` 또는 `::이름 속성` | 없음 |
-| 탭 묶음 | `:::tabs`·`:::platform` 옵션, `@tab 라벨` 줄, `:::end` | `:::tab[이름]` 블록은 `알 수 없는 블록입니다` |
+| 탭 | 없음. 탭 문법은 없앴다 | `:::tabs`·`:::platform`·`:::tab[이름]`·`:::end`는 다른 이름 없는 블록과 같이 위치가 있는 `알 수 없는 블록입니다`, `@tab` 줄은 일반 문단, `ui:tabs`·`ui:platform`은 `Unknown document component` |
 | 옵션 | `key=값`, 값 없는 참거짓 이름(`rounded`, `controls`) | `box`, `top`, `w-narrow`, `selector-segmented`, `centered` 같은 약칭·붙임 옵션은 `허용하지 않는 속성입니다` |
 | 도표 펜스 | ` ```diagramplay width=… name=… ` | ` ```thinkflow `·` ```torso `는 일반 코드 펜스 |
 
-[output.test.js](../../test/output.test.js)의 `old_tab_sets_and_old_options_are_ordinary_syntax_errors`, `old_diagram_fence_names_are_plain_code_and_their_options_are_code_options`와 [diagram.test.js](../../test/diagram.test.js)의 `compileDiagram_does_not_rewrite_old_thinkflow_or_torso_headers`가 검사한다.
+[output.test.js](../../test/output.test.js)의 `removed_tab_syntax_and_old_options_are_ordinary_syntax_errors`, `old_diagram_fence_names_are_plain_code_and_their_options_are_code_options`와 [diagram.test.js](../../test/diagram.test.js)의 `compileDiagram_does_not_rewrite_old_thinkflow_or_torso_headers`가 검사한다.
 
 ### 해석 결과
 
@@ -100,11 +100,11 @@ console.log(output.diagnostics);
 
 문법 오류는 던지지 않고 진단으로 돌려준다. 오류 블록은 오류 토큰 하나로 바뀌고 문서의 나머지는 유지한다. 닫는 줄을 찾지 못한 블록은 여는 줄만 오류로 처리하므로 뒤따르는 줄에서 추가 진단이 생길 수 있다.
 
-진단 줄은 실제 위치를 가리킨다. 인라인 표기의 오류는 문단 시작 줄에 오류 앞의 줄바꿈 수를 더한 줄이다. 문단 바로 다음 줄의 `:::`·`:::end`·형식이 틀린 블록 줄도 문단에 흡수하지 않고 진단한다. 줄 첫머리의 `::글::`처럼 같은 줄에서 닫히는 강조는 블록이 아니라 문단이다.
+진단 줄은 실제 위치를 가리킨다. 인라인 표기의 오류는 문단 시작 줄에 오류 앞의 줄바꿈 수를 더한 줄이다. 문단 바로 다음 줄의 `:::`·형식이 틀린 블록 줄도 문단에 흡수하지 않고 진단한다. 줄 첫머리의 `::글::`처럼 같은 줄에서 닫히는 강조는 블록이 아니라 문단이다.
 
 `ui:` 구성 요소의 필드 형식은 해석 단계에서 검사한다. 명세(`parser/ui-fences.js`의 `UI_KINDS`)는 필드마다 글(문자열·숫자·참거짓·null), 항목 목록, 글 목록 중 하나를 정한다. 형식이 틀리면 `body: 글이어야 합니다`처럼 필드 경로가 있는 진단을 그 필드가 있는 줄에 남기고 구성 요소는 오류 블록이 된다. 출력 단계에서 JavaScript 오류 문구나 `[object Object]`가 나오지 않는다.
 
-문서 안 DOM id는 유일하다. 구성 요소 번호(`component-<pageId|page>-N`)는 한 줄 필드 안의 구성 요소까지 문서 전체에서 한 번씩만 쓴다. 제목 id는 모든 구성 요소 번호를 정한 뒤 붙이며, 구성 요소 id나 그 파생 id(`-tip`, `-tab-0` 등)와 겹치면 `heading-`을 앞에 붙인다.
+문서 안 DOM id는 유일하다. 구성 요소 번호(`component-<pageId|page>-N`)는 한 줄 필드 안의 구성 요소까지 문서 전체에서 한 번씩만 쓴다. 제목 id는 모든 구성 요소 번호를 정한 뒤 붙이며, 구성 요소 id나 그 파생 id(`-tip`, 갤러리의 `-tab-0` 등)와 겹치면 `heading-`을 앞에 붙인다.
 
 작업 항목 표식 `[x]`·`[ ]`·`[~]`는 같은 이름의 참조 정의(`[x]: 주소`)가 있어도 링크가 아니라 작업 상태다.
 
@@ -140,8 +140,6 @@ console.log(output.diagnostics);
 
 검증한 `name`은 펜스 토큰의 `meta.options`에 보존한다. 도표 원문·수집 정보·출력·경로에는 쓰지 않는다. 이름이 달라도 원문이 같으면 도표를 한 번만 만든다. 이름을 이용한 생성 SVG와 장면 표식의 전처리는 홈페이지 어댑터가 맡는다.
 
-도표 컴파일 결과의 `scenes`는 DiagramPlay 시간표의 단계 수다. 이 값이 둘 이상인 도표를 품은 일반 `:::tabs`에서 렌더러는 생략한 `position`을 `top`, `selector`를 `segmented`로 채운다. 명시한 옵션과 `platform` 묶음은 바꾸지 않으며 원문을 다시 읽어 단계를 세지 않는다. 이 처리는 호스트가 아니라 [렌더러](../../renderer/directive-render.js)의 책임이며, [renderer.test.js](../../test/renderer.test.js)의 `tabs_holding_a_multi_scene_diagram_fill_only_omitted_position_and_selector`와 `platform_tabs_and_later_tab_sets_ignore_the_scene_decision`이 검사한다.
-
 각주 ID는 `pageId`를 접두사로 해(`fn-<pageId>-1`, `fnref-<pageId>-1`) 한 피드의 여러 문서가 겹치지 않으며, `pageId`가 없으면 접두사가 없다. 구성 요소 안 각주는 구성 요소 번호를 따른다.
 
 같은 문서를 다시 그리거나 다른 테마로 그려도 문서 토큰은 바뀌지 않는다. 아이콘 SVG ID(`icon-N-`)는 디자인 정본이 프로세스 전체 카운터로 만들므로 호출 이력에 따라 숫자가 달라진다. 출력 문자열은 호출마다 달라질 수 있다. 시험에서는 아이콘 ID를 정규화해 구조를 비교한다.
@@ -162,8 +160,6 @@ props의 값은 두 종류다. 원문 글은 escape하지 않은 문자열이라
 
 | 이름 | 형태 | 원문 글 props | HTML props |
 |---|---|---|---|
-| tabs | open·close | label, labels | 없음 |
-| tab | open·close | 없음 | 없음 |
 | callout | open·close | title | 없음 |
 | steps, table | open·close | 없음 | 없음 |
 | cards | open·close·gap | 없음 | 없음 |
@@ -182,7 +178,6 @@ props의 값은 두 종류다. 원문 글은 escape하지 않은 문자열이라
 |---|---|
 | callout | callout |
 | details | details |
-| tabs, platform | tabs, tab |
 | cards | card, cards(`split`이 없을 때) |
 | figure, figure-grid | figure |
 | video | video |

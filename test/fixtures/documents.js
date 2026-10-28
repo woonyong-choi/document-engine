@@ -1,46 +1,20 @@
 // 합성 시험 문서. 개인 문서가 아니며 블록 문법, ui: 구성 요소, 코드·표·수식·각주를 고루 담는다.
 const fence = (name, data) => `\`\`\`ui:${name}\n${JSON.stringify(data)}\n\`\`\``;
 
-const REQUESTED_TABS = [
-  ':::tabs selector=segmented',
-  '@tab 변경 전',
-  '',
-  '![변경 전 화면](/assets/repeating-comparison-1-io80.png)',
-  '',
-  '기존 화면입니다.',
-  '',
-  '@tab 변경 후',
-  '',
-  '![변경 후 화면](/assets/repeating-comparison-2-io80.png)',
-  '',
-  '개선한 화면입니다.',
-  '',
-  ':::end',
-  '',
-].join('\n');
-
-const TABS_WITH_NOTE = [
-  ':::tabs',
-  '@tab macOS',
+const NOTE_WITH_LIST = [
+  ':::note',
   '1. :menu[설정]을 엽니다.',
   '2. :kbd[⌘ K]를 누릅니다.',
   '',
-  ':::note',
   '일반 Markdown **안내문**',
   ':::',
   '',
-  '@tab Windows',
-  '설명',
-  '',
-  ':::end',
-  '',
 ].join('\n');
 
-const TAB_BODIES = [
-  ':::tabs',
-  '@tab 코드',
+const NOTE_BODIES = [
+  ':::note',
   '```bash',
-  'echo ":::tab[가짜]"',
+  'echo ":::note[가짜]"',
   ':::',
   '```',
   '',
@@ -58,11 +32,11 @@ const TAB_BODIES = [
   'title: 안내',
   'body: ui 블록도 그대로',
   '```',
+  ':::',
   '',
-  '@tab 둘째',
+  ':::warning',
   '둘째 각주[^b]',
-  '',
-  ':::end',
+  ':::',
   '',
   '[^a]: 첫째',
   '[^b]: 둘째',
@@ -107,11 +81,11 @@ const SLIDES = ['2-today-mac.png', '3-upcoming-mac-2.png', '4-headings-mac.png']
 
 /** 이름과 원문. 같은 입력을 원본과 새 엔진에 넣어 비교한다. */
 export const DOCUMENTS = Object.freeze({
-  tabs_note_and_list: TABS_WITH_NOTE,
-  platform_with_warning: ':::platform[기기]\n@tab Mac\n\n:::warning[조심]\n내용\n:::\n\n:::end\n',
-  tab_bodies_with_code_images_footnotes_and_ui: TAB_BODIES,
+  note_with_list: NOTE_WITH_LIST,
+  warning_with_label: ':::warning[조심]\n내용\n:::\n',
+  note_bodies_with_code_images_footnotes_and_ui: NOTE_BODIES,
   heading_ids_across_blocks:
-    '## 설정\n\n:::tabs\n@tab A\n\n## 설정\n\n### 설정\n\n@tab B\n\n## 설정\n\n:::end\n',
+    '## 설정\n\n:::note\n## 설정\n\n### 설정\n:::\n\n:::warning\n## 설정\n:::\n',
   steps_fineprint_qa: [
     ':::steps',
     '1. 하나',
@@ -153,7 +127,7 @@ export const DOCUMENTS = Object.freeze({
   tooltip_ids_inside_ui_components:
     '가 :tip[하나]{text=a} 나 :tip[둘]{text=b}\n\n```ui:callout\ntitle: x\nbody: ":tip[셋]{text=c} :tip[넷]{text=d}"\n```\n',
   markers_inside_code_stay_literal:
-    '`:tip[x]{text=y}` 와 `:::tabs`\n\n```md\n:::tabs\n:tip[a]{}\n```\n',
+    '`:tip[x]{text=y}` 와 `:::note`\n\n```md\n:::note\n:tip[a]{}\n```\n',
   indented_fence_inside_list_item: ':::note\n1. 항목\n\n    ```text\n    :::note\n    ```\n:::\n',
   many_sibling_notes: Array.from({ length: 200 }, (_, index) => `:::note\n${index}\n:::\n`).join(
     '\n',
@@ -167,61 +141,18 @@ export const DOCUMENTS = Object.freeze({
     '- [ ] **상위** [링크](#target) `<code>`\n  - [x] 하위 & <script>\n- [~] 취소\n',
   mixed_width_options: WIDTHS,
   long_unbroken_code: `\`\`\`text width=wide\nToken_${'0123456789'.repeat(40)}\n\t끝  \n\`\`\`\n`,
-  new_tabs_form: REQUESTED_TABS,
-  new_tabs_default_options: ':::tabs\n@tab A\n\n가\n\n@tab B\n\n나\n\n:::end\n',
-  new_tabs_all_options:
-    ':::tabs frame=panel position=top selector=segmented width=wide\n@tab A\n\n가\n\n@tab B\n\n나\n\n:::end\n\n뒤 문단\n',
-  new_tabs_numbers_unlabeled:
-    ':::tabs selector=numbers\n@tab\n\n하나\n\n@tab 둘째\n\n둘\n\n@tab\n\n셋\n\n:::end\n',
-  new_tabs_markers_inside_code: [
-    ':::tabs frame=none',
-    '@tab 원문',
-    '',
-    '```markdown',
-    ':::tabs frame=none',
-    '@tab 가짜',
-    '',
-    '내용',
-    '',
-    ':::end',
-    '```',
-    '',
-    '~~~text',
-    '@tab 틸드',
-    ':::end',
-    '~~~',
-    '',
-    '    @tab 들여쓴 코드',
-    '',
-    ':::note',
-    '@tab 안쪽 본문',
-    ':::',
-    '',
-    '@tab 두번째',
-    '',
-    '끝',
-    '',
-    ':::end',
-    '',
-  ].join('\n'),
-  two_tab_sets_together: `${REQUESTED_TABS}\n:::tabs\n@tab A\n\n가\n\n:::end\n`,
   related_and_centered_card_variants:
     ':::cards{variant=related}\n::card{title=가 href=/a/ icon=document description=요약}\n::card{title=나 href=/b/}\n:::\n\n:::cards{variant=centered}\n::card{title=다 href=/c/ icon=document}\n:::\n',
-  ui_tabs_with_nested_fence_and_footnote: [
+  ui_callout_with_nested_fence_and_footnote: [
     '## Repeated',
     '',
     'Note[^1]',
     '',
     '[^1]: Explanation',
     '',
-    fence('tabs', {
-      items: [
-        {
-          label: 'Mac',
-          body: `## Repeated\n${fence('callout', { title: 'Note', body: 'Body[^x]\n\n[^x]: nested' })}`,
-        },
-        { label: 'iOS', body: '## Repeated' },
-      ],
+    fence('group', {
+      title: 'Mac',
+      body: `## Repeated\n${fence('callout', { title: 'Note', body: 'Body[^x]\n\n[^x]: nested' })}`,
     }),
   ].join('\n'),
   fineprint_null_and_empty_bodies: `${fence('fineprint', { body: null })}\n\n${fence('fineprint', {})}\n\n${fence('fineprint', { body: '' })}`,
@@ -430,51 +361,15 @@ export const ERROR_CASES = Object.freeze([
     '문단\n\n```js width=huge\nx\n```\n',
     /3줄 :code: width는 content, narrow, wide 중 하나/,
   ],
-  [
-    '탭 옵션 이름',
-    ':::tabs frame-box\n@tab A\n\n가\n\n:::end\n',
-    /1줄 :tabs: 허용하지 않는 속성입니다: frame-box/,
-  ],
-  ['탭 닫힘 없음', ':::tabs frame=none\n@tab A\n\n가\n\n', /1줄 :tabs: 닫는 :::end 줄이 없습니다/],
-  [
-    '탭을 :::로 닫음',
-    ':::tabs frame=none\n@tab A\n\n가\n\n:::\n',
-    /1줄의 :tabs 묶음은 :::end 로 닫아야 합니다/,
-  ],
-  ['@tab 없음', ':::tabs frame=none\n:::end\n', /@tab 줄이 하나도 없습니다/],
-  [
-    '첫 @tab 앞 본문',
-    ':::tabs frame=none\n문단\n\n@tab A\n\n가\n\n:::end\n',
-    /첫 @tab 줄 앞에는 본문을 둘 수 없습니다/,
-  ],
-  [
-    '@tab 라벨 필요',
-    ':::tabs\n@tab\n\n가\n\n@tab B\n\n나\n\n:::end\n',
-    /2줄 :tabs: @tab 라벨이 필요합니다/,
-  ],
-  [
-    '@tab 빈 본문',
-    ':::tabs\n@tab A\n\n@tab B\n\n나\n\n:::end\n',
-    /2줄 :tabs: 탭 본문이 비었습니다/,
-  ],
-  ['@tab 이름 중복', ':::tabs\n@tab A\n\n가\n\n@tab a\n\n나\n\n:::end\n', /탭 이름이 겹칩니다: a/],
-  ['고아 :::end', '문단\n\n:::end\n', /3줄: 여는 블록 없이 :::end 가 있습니다/],
 ]);
 
 /** 엔진만 확인하는 오류 입력. 엔진이 옛 문법을 받지 않게 되어 고정 홈페이지 원본과 결과가 다르다. pattern은 엔진 진단의 기대 문구다. */
 export const ENGINE_ERROR_CASES = Object.freeze([
-  ['네 콜론 블록', '::::tabs\n@tab A\n\n본문\n\n:::end\n', /1줄: 블록 줄 형식이 잘못되었습니다/],
+  ['네 콜론 블록', '::::note\n본문\n:::\n', /1줄: 블록 줄 형식이 잘못되었습니다/],
   ['탭 블록 이름', ':::tab[A]\n본문\n:::\n', /1줄 :tab: 알 수 없는 블록입니다/],
-  [
-    '탭 중첩',
-    ':::tabs\n@tab A\n\n:::platform\n@tab B\n\n본문\n\n:::end\n\n:::end\n',
-    /4줄 :platform: :::tab 안에서는 쓸 수 없습니다/,
-  ],
-  [
-    '탭 옵션 겹침',
-    ':::tabs frame=none frame=panel\n@tab A\n\n가\n\n:::end\n',
-    /속성이 겹칩니다: frame/,
-  ],
+  ['탭 묶음', '문단\n\n:::tabs\n@tab A\n\n가\n\n:::end\n', /3줄 :tabs: 알 수 없는 블록입니다/],
+  ['기기 묶음', ':::platform[기기]\n@tab Mac\n\n가\n:::\n', /1줄 :platform: 알 수 없는 블록입니다/],
+  ['끝 줄', '문단\n\n:::end\n', /3줄 :end: 알 수 없는 블록입니다/],
 ]);
 
 /** ui: 구성 요소의 오류 입력. 원본은 같은 입력에서 같은 메시지로 실패한다. pattern은 엔진 진단의 기대 문구다. */
@@ -530,7 +425,6 @@ export const UI_ERROR_CASES = Object.freeze(
       }),
       /^Gallery selected index is out of range$/,
     ],
-    ['tabs_without_items', fence('tabs', { title: 'x' }), /^Tabs require items$/],
     [
       'asset_traversal',
       fence('figure', { src: '../outside.png', alt: 'x' }),
@@ -556,7 +450,13 @@ export const UI_ERROR_CASES = Object.freeze(
 
 /** 문법 오류로 진단이 나야 하는 ui: 입력. 메시지는 엔진이 위치를 덧붙여 달라도 원인이 같아야 한다. pattern은 엔진 진단의 기대 문구다. */
 export const UI_SYNTAX_ERRORS = Object.freeze([
-  ['yaml_unclosed', '```ui:tabs\nitems: [\n```\n', /^ui:tabs 데이터를 읽을 수 없습니다: /],
+  ['yaml_unclosed', '```ui:cards\nitems: [\n```\n', /^ui:cards 데이터를 읽을 수 없습니다: /],
+  ['ui_tabs_unknown', '```ui:tabs\nitems: []\n```\n', /^Unknown document component: tabs$/],
+  [
+    'ui_platform_unknown',
+    '```ui:platform\nitems: []\n```\n',
+    /^Unknown document component: platform$/,
+  ],
   ['yaml_scalar', '```ui:callout\njust text\n```\n', /^Invalid ui:callout data$/],
   [
     'diagramplay_unknown_option',

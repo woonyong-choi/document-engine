@@ -1,13 +1,9 @@
 // 디렉티브 블록과 인라인 표기의 문법 정의. 각 항목이 허용 속성, 놓을 수 있는 자리, 본문 규칙과 의미 준비를 정한다.
 // 출력은 renderer/directive-render.js가 같은 이름으로 정의한다. 이 파일은 HTML과 테마를 알지 못한다.
-import { TAB_ATTRIBUTES, WIDTH_OPTION } from './directive-syntax.js';
+import { WIDTH_OPTION } from './directive-syntax.js';
 
-const PLACES = ['root', 'tab'];
+const PLACES = ['root'];
 const LIST = ['bullet_list', 'ordered_list'];
-
-// 탭 묶음은 `:::tabs 옵션` 다음 `@tab 라벨` 줄로 나누고 `:::end`로 닫는다(directives.js의 tabsBlock).
-// 여기 명세는 놓을 수 있는 자리와 옵션만 정한다. 탭 하나(tab)는 묶음 안에서만 생기며 사용자가 쓰는 블록이 아니다.
-const tabSet = Object.freeze({ tabs: true, attrs: TAB_ATTRIBUTES, within: ['root'] });
 
 const callout = {
   label: 'optional',
@@ -18,8 +14,6 @@ const callout = {
 
 export const BLOCKS = Object.freeze({
   __proto__: null,
-  tabs: tabSet,
-  platform: tabSet,
   note: callout,
   warning: callout,
   fineprint: {

@@ -1,5 +1,4 @@
 // 사이트 출력과 미리보기가 함께 쓰는 출력 상태와 토큰 단위 출력. 테마·강조기 준비는 호출한 진입점이 한다.
-import { tabsWithScenes } from './directive-render.js';
 import { createKit } from './kit.js';
 import { createRenderer } from './markdown-rules.js';
 
@@ -22,7 +21,6 @@ export function renderTokens(document, context, { theme, components, highlighter
     highlighter,
     diagnostics: [],
     failedOpens: new WeakSet(),
-    sceneTabs: tabsWithScenes(document.tokens, context.diagrams),
     pairs: [],
     renderUnit: (unit) => renderUnit(unit, render),
   };

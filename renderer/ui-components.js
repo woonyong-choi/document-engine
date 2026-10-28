@@ -128,26 +128,6 @@ function figureGrid(data, rc) {
   return rc.kit.ui.FigureGrid({ columns: data.columns, size: data.size, figures });
 }
 
-function tabs(data, rc, platform) {
-  if (!Array.isArray(data.items) || !data.items.length) throw new Error('Tabs require items');
-  const props = {
-    id: rc.id,
-    label: data.title ?? '기기별 안내',
-    platform,
-    labels: data.items.map((item) => item.label),
-    ...(platform ? {} : { position: 'top', selector: 'segmented' }),
-    selected: 0,
-    width: rc.kit.ui.contentWidth({}),
-  };
-  const panels = () =>
-    data.items
-      .map((item, index) =>
-        paired(rc, 'tab', { id: rc.id, index, selected: 0 }, () => rc.html(`items.${index}.body`)),
-      )
-      .join('');
-  return paired(rc, 'tabs', props, panels, props);
-}
-
 function cards(data, rc) {
   if (data.variant && !rc.kit.ui.CARD_VARIANTS.includes(data.variant))
     throw new Error(`Unknown card variant: ${data.variant}`);
@@ -209,8 +189,6 @@ export const UI_RENDERERS = Object.freeze({
       playerWide: data.wide,
     }),
   gallery: (data, rc) => rc.call('gallery', undefined, { ...data, id: rc.id }),
-  platform: (data, rc) => tabs(data, rc, true),
-  tabs: (data, rc) => tabs(data, rc, false),
   cards,
   definitions: (data, rc) =>
     rc.kit.ui.Definitions({

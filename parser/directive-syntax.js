@@ -7,20 +7,17 @@ const NAME = '[a-z][a-z0-9-]{0,23}';
 const OPEN = new RegExp(`^(:{3})(${NAME})(?:\\[([^\\]\\n]*)\\])?(?:\\{(.*)\\})?\\s*$`);
 const LEAF = new RegExp(`^::(${NAME})(?:\\[([^\\]\\n]*)\\])?\\{(.*)\\}\\s*$`);
 const CLOSE = /^:::\s*$/;
-const END = /^:::end\s*$/;
 const FLAT = new RegExp(`^(:{2,3})(${NAME})(?:\\[([^\\]\\n]*)\\])?[ \\t]+(?![\\[{])(\\S.*?)\\s*$`);
-const TAB_LINE = /^@tab(?:[ \t]+(.*?))?\s*$/;
 const KEY = /^[a-z][a-z0-9-]{0,23}/;
 const BARE = /^[^\s"'{}=\\]+/;
 // eslint-disable-next-line no-control-regex
 const CONTROL = /[\u0000-\u001f\u007f]/u;
 const LIMITS = { attributes: 12, value: 300, label: 80 };
 
-// 한 줄을 여는 줄(`:::이름`), 닫는 줄(`:::`, `:::end`), 리프 줄(`::이름`)로 나눈다. 콜론은 셋(블록)과 둘(리프)만 쓴다.
-// 블록 줄처럼 보이지만 형식이 틀리면(`::::tabs` 같은 네 콜론 포함) 'invalid'다.
+// 한 줄을 여는 줄(`:::이름`), 닫는 줄(`:::`), 리프 줄(`::이름`)로 나눈다. 콜론은 셋(블록)과 둘(리프)만 쓴다.
+// 블록 줄처럼 보이지만 형식이 틀리면(`::::note` 같은 네 콜론 포함) 'invalid'다.
 export function classifyLine(text) {
   if (!text.startsWith('::')) return { kind: 'text' };
-  if (END.test(text)) return { kind: 'end' };
   let match = OPEN.exec(text);
   if (match) {
     return {
@@ -177,12 +174,6 @@ function checkValue(key, rule, value, fail, checks) {
   return value;
 }
 
-// `@tab 라벨` 줄. 라벨이 없으면 `{ label: undefined }`, 탭 줄이 아니면 null이다.
-export function parseTabLine(text) {
-  const match = TAB_LINE.exec(text);
-  return match ? { label: match[1] || undefined } : null;
-}
-
 /**
  * 열거형 규칙의 값 목록. values가 문자열이면 호출자가 준 vocabulary의 그 이름 목록이다.
  * 호출자가 목록을 주지 않았으면 undefined이며 해석 단계에서 확인하지 않는다(출력 단계의 디자인 구성 요소가 다시 거부한다).
@@ -195,17 +186,8 @@ function enumValues(rule, checks = {}) {
 
 // 폭 값은 호출자가 vocabulary.widths로 준 디자인 정본 목록을 쓴다.
 export const WIDTH_OPTION = Object.freeze({ type: 'enum', values: 'widths' });
-export const TAB_ATTRIBUTES = Object.freeze({
-  frame: { type: 'enum', values: ['none', 'panel'] },
-  position: { type: 'enum', values: ['bottom', 'top'] },
-  selector: { type: 'enum', values: ['buttons', 'segmented', 'numbers'] },
-  width: WIDTH_OPTION,
-});
 
 // `key=값`과 값 없는 참거짓 이름(`rounded`)만 받는다. 명세에 없는 이름은 허용하지 않는 속성이다.
 export function parseOptions(source, spec, fail, checks = {}) {
   return validateAttributes(parseAttributes(source, fail), spec, fail, checks);
 }
-
-export const parseTabOptions = (source, fail, checks) =>
-  parseOptions(source, TAB_ATTRIBUTES, fail, checks);
